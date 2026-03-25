@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Perfect Circle Challenge</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     background: #0a0a0f;
@@ -214,7 +214,12 @@ let gridOffset = 0;
 // --- State ---
 let centroid = { x: 0, y: 0 };
 let avgRadius = 0;
-let bestScore = parseFloat(localStorage.getItem('perfectCircleBest')) || 0;
+let bestScore = 0;
+try {
+  bestScore = parseFloat(localStorage.getItem('perfectCircleBest')) || 0;
+} catch (e) {
+  // localStorage unavailable (private browsing, etc.)
+}
 
 function resize() {
   const dpr = window.devicePixelRatio || 1;
@@ -270,16 +275,14 @@ function computeStats(pts) {
 
 function computeScore(pts) {
   if (pts.length < 10) return 0;
-  const { deviations } = computeStats(pts);
+  const { cx, cy, r, deviations } = computeStats(pts);
   const avgDev = deviations.reduce((a, b) => a + b, 0) / deviations.length;
   // Also check if the path forms a complete loop
   const start = pts[0];
   const end = pts[pts.length - 1];
-  const { r } = computeStats(pts);
   const closureGap = Math.hypot(end.x - start.x, end.y - start.y);
   const closurePenalty = Math.min(closureGap / (r || 1) * 15, 20);
   // Check angular coverage
-  const { cx, cy } = computeStats(pts);
   const angles = pts.map(p => Math.atan2(p.y - cy, p.x - cx));
   let totalAngle = 0;
   for (let i = 1; i < angles.length; i++) {
@@ -420,7 +423,10 @@ function drawParticles() {
     if (p.life <= 0) { particles.splice(i, 1); continue; }
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-    ctx.fillStyle = p.color.replace('rgb', 'rgba').replace(')', `,${p.life * 0.7})`);
+    const match = p.color.match(/\d+/g);
+    ctx.fillStyle = match
+      ? `rgba(${match[0]},${match[1]},${match[2]},${p.life * 0.7})`
+      : p.color;
     ctx.shadowColor = p.color;
     ctx.shadowBlur = 6;
     ctx.fill();
@@ -581,7 +587,11 @@ function showResult(score) {
   // Check best
   if (score > bestScore) {
     bestScore = score;
-    localStorage.setItem('perfectCircleBest', bestScore.toString());
+    try {
+      localStorage.setItem('perfectCircleBest', bestScore.toString());
+    } catch (e) {
+      // localStorage unavailable
+    }
     newBestEl.classList.add('show');
     updateBestDisplay();
   } else {
