@@ -7,8 +7,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&display=swap">
 <style>
   :root {
-    --cv-bg-paper: #F2EBD9;
-    --cv-ink-dark: #1A1209;
+    --cv-bg: #F2EBD9;
+    --cv-ink: #1A1209;
     --cv-ink-mid: #3D2B1A;
     --cv-ink-light: #7A5C3F;
     --cv-grade-s: #C9922B;
@@ -16,155 +16,68 @@
     --cv-grade-b: #3D2B1A;
     --cv-grade-c: #7A5C3F;
     --cv-grade-d: #A89070;
-    --cv-font-display: 'Noto Serif KR', serif;
-    --cv-font-body: 'Noto Serif KR', serif;
   }
-
   * { margin: 0; padding: 0; box-sizing: border-box; }
-
   body {
-    background: var(--cv-bg-paper);
+    background: var(--cv-bg);
     overflow: hidden;
-    font-family: var(--cv-font-body);
-    color: var(--cv-ink-dark);
+    font-family: 'Noto Serif KR', serif;
+    color: var(--cv-ink);
     touch-action: none;
     -webkit-user-select: none;
     user-select: none;
   }
-
   canvas {
-    display: block;
-    position: fixed;
-    top: 0; left: 0;
+    display: block; position: fixed; top: 0; left: 0;
     width: 100vw; height: 100vh;
   }
-
-  #bg-canvas { z-index: 0; pointer-events: none; }
+  #paper-canvas { z-index: 0; pointer-events: none; }
   #ink-canvas { z-index: 1; }
-  #bleed-canvas { z-index: 0; pointer-events: none; }
 
   #ui-layer {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-    z-index: 10;
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 10;
   }
-
-  .top-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 30px;
-  }
-
+  .top-bar { display: flex; justify-content: space-between; padding: 20px 30px; }
   .best-score {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(26,18,9,0.05);
-    border: 1px solid rgba(26,18,9,0.10);
-    border-radius: 12px;
-    padding: 8px 16px;
-    font-size: 13px;
-    color: var(--cv-ink-mid);
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(26,18,9,0.05); border: 1px solid rgba(26,18,9,0.10);
+    border-radius: 12px; padding: 8px 16px; font-size: 13px; color: var(--cv-ink-mid);
   }
-
-  .best-score span { font-weight: 700; color: var(--cv-ink-dark); }
-
+  .best-score span { font-weight: 700; color: var(--cv-ink); }
   .hint {
-    position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    font-family: var(--cv-font-display);
-    font-size: 18px;
-    color: rgba(26,18,9,0.28);
-    letter-spacing: 0.08em;
-    transition: opacity 0.5s;
-    pointer-events: none;
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    font-size: 18px; color: rgba(26,18,9,0.25); letter-spacing: 0.08em;
+    transition: opacity 0.5s; pointer-events: none;
   }
-
   #result-overlay {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.4s;
-    z-index: 20;
+    position: fixed; top:0; left:0; width:100%; height:100%;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.4s; z-index: 20;
   }
-
-  #result-overlay.show {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
+  #result-overlay.show { opacity: 1; pointer-events: auto; }
   .result-card {
-    background: rgba(242,235,217,0.95);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(26,18,9,0.10);
-    border-radius: 20px;
-    padding: 40px 48px;
-    text-align: center;
+    background: rgba(242,235,217,0.95); backdrop-filter: blur(16px);
+    border: 1px solid rgba(26,18,9,0.10); border-radius: 20px;
+    padding: 40px 48px; text-align: center;
     box-shadow: 0 8px 32px rgba(26,18,9,0.08);
   }
-
-  .grade {
-    font-family: var(--cv-font-display);
-    font-size: 72px;
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: 8px;
-  }
-
-  .score-label {
-    font-size: 13px;
-    color: var(--cv-ink-light);
-    margin-bottom: 4px;
-    letter-spacing: 0.1em;
-  }
-
-  .score-value {
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--cv-ink-dark);
-    margin-bottom: 20px;
-  }
-
-  .new-best {
-    display: none;
-    font-family: var(--cv-font-display);
-    font-size: 13px;
-    color: var(--cv-grade-s);
-    margin-bottom: 16px;
-  }
-
+  .grade { font-size: 72px; font-weight: 700; line-height: 1; margin-bottom: 8px; }
+  .score-label { font-size: 13px; color: var(--cv-ink-light); margin-bottom: 4px; letter-spacing: 0.1em; }
+  .score-value { font-size: 32px; font-weight: 700; margin-bottom: 20px; }
+  .new-best { display: none; font-size: 13px; color: var(--cv-grade-s); margin-bottom: 16px; }
   .new-best.show { display: block; }
-
   .retry-btn {
-    background: var(--cv-ink-dark);
-    color: var(--cv-bg-paper);
-    border: none;
-    border-radius: 10px;
-    padding: 12px 36px;
-    font-family: var(--cv-font-body);
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: opacity 0.2s;
-    pointer-events: auto;
+    background: var(--cv-ink); color: var(--cv-bg); border: none;
+    border-radius: 10px; padding: 12px 36px; font-family: inherit;
+    font-size: 15px; font-weight: 700; cursor: pointer; pointer-events: auto;
   }
-
   .retry-btn:hover { opacity: 0.8; }
 </style>
 </head>
 <body>
 
-<canvas id="bg-canvas"></canvas>
-<canvas id="bleed-canvas"></canvas>
+<canvas id="paper-canvas"></canvas>
 <canvas id="ink-canvas"></canvas>
 
 <div id="ui-layer">
@@ -186,83 +99,73 @@
 
 <script>
 // ============================================================
-// Canvas Setup
+// Setup
 // ============================================================
-const bgCanvas = document.getElementById('bg-canvas');
+const paperCanvas = document.getElementById('paper-canvas');
 const inkCanvas = document.getElementById('ink-canvas');
-const bleedCanvas = document.getElementById('bleed-canvas');
-const bgCtx = bgCanvas.getContext('2d');
+const paperCtx = paperCanvas.getContext('2d');
 const inkCtx = inkCanvas.getContext('2d');
-const bleedCtx = bleedCanvas.getContext('2d');
-
 const overlay = document.getElementById('result-overlay');
 const hint = document.getElementById('hint');
-const scoreValue = document.getElementById('score-value');
+const scoreEl = document.getElementById('score-value');
 const gradeEl = document.getElementById('grade');
 const newBestEl = document.getElementById('new-best');
-const bestScoreValue = document.getElementById('best-score-value');
+const bestScoreEl = document.getElementById('best-score-value');
 const retryBtn = document.getElementById('retry-btn');
 
 let W, H, dpr;
 let points = [];
 let isDrawing = false;
 let isDone = false;
-let smoothVelocity = 0;
+let smoothV = 0;
 let paperFibers = null;
-
-// Bleed system: tracks ink blobs that are still spreading
-let bleedBlobs = [];
-let bleedRAF = null;
-
 let bestScore = 0;
+
+// Bleed system
+let bleedPoints = []; // points waiting to bleed
+let bleedFrame = null;
+
+// Close detection
+const CLOSE_DIST = 35; // px — how close end must be to start
+
 try { bestScore = parseFloat(localStorage.getItem('perfectCircleBest')) || 0; } catch(e) {}
-updateBestDisplay();
+updateBest();
 
 // ============================================================
-// Audio — brush sound
+// Audio
 // ============================================================
-let audioCtx = null;
-let brushNode = null;
-let brushGain = null;
-let brushFilter = null;
-let noiseBuffer = null;
+let ac = null, noiseBuf = null, brushSrc = null, brushGain = null, brushFilt = null;
 
 function initAudio() {
-  if (audioCtx) return;
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const sz = audioCtx.sampleRate * 2;
-  noiseBuffer = audioCtx.createBuffer(1, sz, audioCtx.sampleRate);
-  const d = noiseBuffer.getChannelData(0);
+  if (ac) return;
+  ac = new (window.AudioContext || window.webkitAudioContext)();
+  const sz = ac.sampleRate * 2;
+  noiseBuf = ac.createBuffer(1, sz, ac.sampleRate);
+  const d = noiseBuf.getChannelData(0);
   for (let i = 0; i < sz; i++) d[i] = Math.random() * 2 - 1;
 }
 
-function startBrush() {
-  if (!audioCtx) return;
-  brushNode = audioCtx.createBufferSource();
-  brushNode.buffer = noiseBuffer;
-  brushNode.loop = true;
-  brushFilter = audioCtx.createBiquadFilter();
-  brushFilter.type = 'bandpass';
-  brushFilter.frequency.value = 1200;
-  brushFilter.Q.value = 0.8;
-  brushGain = audioCtx.createGain();
-  brushGain.gain.value = 0;
-  brushNode.connect(brushFilter);
-  brushFilter.connect(brushGain);
-  brushGain.connect(audioCtx.destination);
-  brushNode.start();
+function startBrushSound() {
+  if (!ac) return;
+  brushSrc = ac.createBufferSource();
+  brushSrc.buffer = noiseBuf; brushSrc.loop = true;
+  brushFilt = ac.createBiquadFilter();
+  brushFilt.type = 'bandpass'; brushFilt.frequency.value = 1200; brushFilt.Q.value = 0.8;
+  brushGain = ac.createGain(); brushGain.gain.value = 0;
+  brushSrc.connect(brushFilt); brushFilt.connect(brushGain); brushGain.connect(ac.destination);
+  brushSrc.start();
 }
 
-function updateBrush(v) {
+function updateBrushSound(v) {
   if (!brushGain) return;
   const n = Math.min(v / 1.5, 1);
-  brushGain.gain.setTargetAtTime(0.02 + n * 0.04, audioCtx.currentTime, 0.05);
-  brushFilter.frequency.setTargetAtTime(800 + n * 1400, audioCtx.currentTime, 0.05);
+  brushGain.gain.setTargetAtTime(0.02 + n * 0.04, ac.currentTime, 0.05);
+  brushFilt.frequency.setTargetAtTime(800 + n * 1200, ac.currentTime, 0.05);
 }
 
-function stopBrush() {
-  if (brushGain) brushGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.06);
-  setTimeout(() => { if (brushNode) try { brushNode.stop(); } catch(e) {} brushNode = null; }, 200);
+function stopBrushSound() {
+  if (brushGain) brushGain.gain.setTargetAtTime(0, ac.currentTime, 0.06);
+  setTimeout(() => { try { brushSrc && brushSrc.stop(); } catch(e) {} brushSrc = null; }, 200);
 }
 
 // ============================================================
@@ -270,13 +173,10 @@ function stopBrush() {
 // ============================================================
 function resize() {
   dpr = window.devicePixelRatio || 1;
-  W = window.innerWidth;
-  H = window.innerHeight;
-  [bgCanvas, inkCanvas, bleedCanvas].forEach(c => {
-    c.width = W * dpr;
-    c.height = H * dpr;
-    c.style.width = W + 'px';
-    c.style.height = H + 'px';
+  W = window.innerWidth; H = window.innerHeight;
+  [paperCanvas, inkCanvas].forEach(c => {
+    c.width = W * dpr; c.height = H * dpr;
+    c.style.width = W + 'px'; c.style.height = H + 'px';
     c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
   });
   drawPaper();
@@ -285,237 +185,294 @@ window.addEventListener('resize', resize);
 resize();
 
 // ============================================================
-// Hanji Paper Background
+// Hanji Paper
 // ============================================================
 function drawPaper() {
-  bgCtx.fillStyle = '#F2EBD9';
-  bgCtx.fillRect(0, 0, W, H);
+  paperCtx.fillStyle = '#F2EBD9';
+  paperCtx.fillRect(0, 0, W, H);
 
   if (!paperFibers || paperFibers._w !== W) {
-    paperFibers = [];
-    paperFibers._w = W;
-    for (let i = 0; i < 350; i++) {
+    paperFibers = []; paperFibers._w = W;
+    for (let i = 0; i < 400; i++) {
       paperFibers.push({
         x: Math.random() * W, y: Math.random() * H,
-        a: (Math.random() < 0.7 ? 0 : Math.PI / 2) + (Math.random() - 0.5) * 0.4,
-        l: 15 + Math.random() * 55,
-        c: (Math.random() - 0.5) * 5,
-        o: 0.03 + Math.random() * 0.08,
-        w: 0.3 + Math.random() * 0.7
+        a: (Math.random() < 0.7 ? 0 : Math.PI/2) + (Math.random()-0.5)*0.4,
+        l: 12 + Math.random()*50, c: (Math.random()-0.5)*4,
+        o: 0.025 + Math.random()*0.06, w: 0.3 + Math.random()*0.6
       });
     }
   }
-
-  bgCtx.save();
-  bgCtx.strokeStyle = '#D9CEAA';
-  bgCtx.lineCap = 'round';
+  paperCtx.save();
+  paperCtx.strokeStyle = '#D9CEAA'; paperCtx.lineCap = 'round';
   for (const f of paperFibers) {
-    bgCtx.globalAlpha = f.o;
-    bgCtx.lineWidth = f.w;
-    bgCtx.beginPath();
-    bgCtx.moveTo(f.x, f.y);
-    const ex = f.x + Math.cos(f.a) * f.l;
-    const ey = f.y + Math.sin(f.a) * f.l;
-    bgCtx.quadraticCurveTo(
-      (f.x + ex) / 2 - Math.sin(f.a) * f.c,
-      (f.y + ey) / 2 + Math.cos(f.a) * f.c, ex, ey);
-    bgCtx.stroke();
+    paperCtx.globalAlpha = f.o; paperCtx.lineWidth = f.w;
+    paperCtx.beginPath(); paperCtx.moveTo(f.x, f.y);
+    const ex = f.x + Math.cos(f.a)*f.l, ey = f.y + Math.sin(f.a)*f.l;
+    paperCtx.quadraticCurveTo((f.x+ex)/2 - Math.sin(f.a)*f.c, (f.y+ey)/2 + Math.cos(f.a)*f.c, ex, ey);
+    paperCtx.stroke();
   }
-  bgCtx.restore();
-
-  // Subtle paper grain noise
-  bgCtx.save();
-  bgCtx.globalAlpha = 0.015;
+  paperCtx.restore();
+  // grain
+  paperCtx.save(); paperCtx.globalAlpha = 0.012;
   for (let i = 0; i < 2000; i++) {
-    bgCtx.fillStyle = Math.random() > 0.5 ? '#C0B090' : '#FFF8E8';
-    bgCtx.fillRect(Math.random() * W, Math.random() * H, 1, 1);
+    paperCtx.fillStyle = Math.random() > 0.5 ? '#C0B090' : '#FFF8E8';
+    paperCtx.fillRect(Math.random()*W, Math.random()*H, 1, 1);
   }
-  bgCtx.restore();
+  paperCtx.restore();
 }
 
 // ============================================================
-// Ink Brush — Real ink bleeding on paper
+// Ink Brush — Multi-layer sumi ink rendering
 //
-// How it works:
-// 1. Core stroke: dark center blob at each point (radial gradient)
-// 2. Bleed layer: softer, larger blobs that EXPAND over time
-//    simulating ink seeping into paper fibers
-// 3. Edge irregularity: random offset for organic feel
+// Real 수묵 ink on 화선지 has 3 visible layers:
+// 1. Mist (안개): very faint, wide spread beyond stroke
+// 2. Bleed (번짐): medium spread, the "cotton-like" diffusion
+// 3. Core (농묵): dark center where brush pressed
+//
+// We render all 3 using shadowBlur + quadratic curves
 // ============================================================
 
-function drawInkDot(ctx, x, y, radius, opacity) {
-  // Single ink dot with radial gradient (dark center → transparent edge)
-  const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
-  grad.addColorStop(0, `rgba(26,18,9,${opacity})`);
-  grad.addColorStop(0.3, `rgba(38,28,16,${opacity * 0.7})`);
-  grad.addColorStop(0.6, `rgba(61,43,26,${opacity * 0.3})`);
-  grad.addColorStop(1, `rgba(61,43,26,0)`);
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
-  ctx.fill();
+function getRadius(v) {
+  // Slow = thick, fast = thin
+  return Math.max(1.5, 6 * (1 - Math.min(v / 1.8, 1) * 0.55));
 }
 
-function brushRadius(velocity) {
-  // Slow = thick (more ink), Fast = thin (less ink)
-  const n = Math.min(velocity / 1.5, 1);
-  return Math.max(2, 7 * (1 - n * 0.55));
-}
-
-function drawLiveStroke() {
-  // Clear and redraw all ink points
+function renderInk() {
   inkCtx.clearRect(0, 0, W, H);
+  if (points.length < 2) {
+    if (points.length === 1) {
+      // Single dot
+      const p = points[0], r = getRadius(0);
+      inkCtx.save();
+      inkCtx.fillStyle = 'rgba(26,18,9,0.7)';
+      inkCtx.shadowColor = 'rgba(26,18,9,0.3)';
+      inkCtx.shadowBlur = r * 3;
+      inkCtx.beginPath(); inkCtx.arc(p.x, p.y, r, 0, Math.PI*2); inkCtx.fill();
+      inkCtx.restore();
+    }
+    return;
+  }
 
-  if (points.length < 1) return;
+  // Build smooth path via quadratic bezier midpoints
+  const smoothPath = [];
+  smoothPath.push({ x: points[0].x, y: points[0].y, v: points[0].v });
+  for (let i = 1; i < points.length - 1; i++) {
+    const p = points[i], n = points[i+1];
+    smoothPath.push({ x: p.x, y: p.y, v: p.v });
+    // midpoint
+    smoothPath.push({ x: (p.x+n.x)/2, y: (p.y+n.y)/2, v: (p.v+n.v)/2 });
+  }
+  smoothPath.push(points[points.length-1]);
 
-  // --- Layer 1: Soft under-bleed (larger, lighter) ---
+  // --- Layer 1: Mist (안개 확산) ---
+  // Very wide, very faint — simulates ink vapor spreading into fibers
   inkCtx.save();
-  inkCtx.globalCompositeOperation = 'darken';
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
-    const r = brushRadius(p.v) * 2.2;
-    drawInkDot(inkCtx, p.x, p.y, r, 0.12);
+  inkCtx.strokeStyle = 'rgba(61,43,26,0.06)';
+  inkCtx.lineCap = 'round'; inkCtx.lineJoin = 'round';
+  inkCtx.shadowColor = 'rgba(61,43,26,0.08)';
+  inkCtx.shadowBlur = 25;
+  inkCtx.lineWidth = 18;
+  drawSmoothPath(inkCtx, points);
+  inkCtx.restore();
+
+  // --- Layer 2: Bleed (번짐) ---
+  // Medium width, medium opacity — the cotton-like diffusion
+  inkCtx.save();
+  inkCtx.strokeStyle = 'rgba(38,28,16,0.15)';
+  inkCtx.lineCap = 'round'; inkCtx.lineJoin = 'round';
+  inkCtx.shadowColor = 'rgba(26,18,9,0.12)';
+  inkCtx.shadowBlur = 12;
+  inkCtx.lineWidth = 10;
+  drawSmoothPath(inkCtx, points);
+  inkCtx.restore();
+
+  // --- Layer 3: Core ink (농묵) ---
+  // Variable width, dark — where the brush touched
+  inkCtx.save();
+  inkCtx.lineCap = 'round'; inkCtx.lineJoin = 'round';
+  for (let i = 1; i < points.length; i++) {
+    const p0 = points[i-1], p1 = points[i];
+    const r = getRadius(p1.v);
+    inkCtx.strokeStyle = `rgba(26,18,9,${0.75 + Math.random()*0.15})`;
+    inkCtx.lineWidth = r * 1.6;
+    inkCtx.shadowColor = 'rgba(26,18,9,0.2)';
+    inkCtx.shadowBlur = 3;
+    inkCtx.beginPath();
+    inkCtx.moveTo(p0.x, p0.y);
+    // Quadratic curve to midpoint for smoothness
+    if (i < points.length - 1) {
+      const mid = { x: (p1.x + points[i+1].x)/2, y: (p1.y + points[i+1].y)/2 };
+      inkCtx.quadraticCurveTo(p1.x, p1.y, mid.x, mid.y);
+    } else {
+      inkCtx.lineTo(p1.x, p1.y);
+    }
+    inkCtx.stroke();
+  }
+  inkCtx.shadowBlur = 0;
+  inkCtx.restore();
+
+  // --- Layer 4: Edge bleed dots (섬유 따라 번짐) ---
+  // Tiny scattered dots along edges — ink following paper fibers
+  inkCtx.save();
+  inkCtx.fillStyle = 'rgba(61,43,26,0.08)';
+  for (let i = 0; i < points.length; i += 2) {
+    const p = points[i], r = getRadius(p.v);
+    const count = 3 + Math.floor(Math.random() * 4);
+    for (let j = 0; j < count; j++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = r + 2 + Math.random() * (r * 1.5);
+      const size = 0.3 + Math.random() * 1.2;
+      inkCtx.beginPath();
+      inkCtx.arc(p.x + Math.cos(angle)*dist, p.y + Math.sin(angle)*dist, size, 0, Math.PI*2);
+      inkCtx.fill();
+    }
   }
   inkCtx.restore();
 
-  // --- Layer 2: Core ink stroke (darker, tighter) ---
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
-    const r = brushRadius(p.v);
+  // --- Bleed spread animation on separate pass ---
+  // Expand existing bleed spots
+  renderBleed();
 
-    // Main ink body
-    drawInkDot(inkCtx, p.x, p.y, r, 0.85);
-
-    // Slight random offset dots for organic edge
-    if (i % 2 === 0) {
-      const angle = Math.random() * Math.PI * 2;
-      const off = r * 0.3 + Math.random() * r * 0.4;
-      drawInkDot(inkCtx, p.x + Math.cos(angle) * off, p.y + Math.sin(angle) * off, r * 0.4, 0.2);
-    }
-  }
-
-  // --- Layer 3: Connecting line for continuity ---
-  if (points.length > 1) {
-    inkCtx.save();
-    inkCtx.strokeStyle = 'rgba(26,18,9,0.8)';
-    inkCtx.lineCap = 'round';
-    inkCtx.lineJoin = 'round';
-    for (let i = 1; i < points.length; i++) {
-      const p0 = points[i - 1], p1 = points[i];
-      const w = brushRadius(p1.v) * 1.1;
-      inkCtx.lineWidth = w;
-      inkCtx.beginPath();
-      inkCtx.moveTo(p0.x, p0.y);
-      inkCtx.lineTo(p1.x, p1.y);
-      inkCtx.stroke();
-    }
-    inkCtx.restore();
+  // --- Start point indicator (when drawing) ---
+  if (isDrawing && points.length > 5) {
+    drawStartIndicator();
   }
 }
 
-// ============================================================
-// Ink Bleed Animation — ink spreads into paper over time
-// ============================================================
+function drawSmoothPath(ctx, pts) {
+  if (pts.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mid = { x: (pts[i].x + pts[i+1].x)/2, y: (pts[i].y + pts[i+1].y)/2 };
+    ctx.quadraticCurveTo(pts[i].x, pts[i].y, mid.x, mid.y);
+  }
+  ctx.lineTo(pts[pts.length-1].x, pts[pts.length-1].y);
+  ctx.stroke();
+}
 
-function addBleedBlob(x, y, baseRadius) {
-  bleedBlobs.push({
-    x: x + (Math.random() - 0.5) * 2,
-    y: y + (Math.random() - 0.5) * 2,
-    r: baseRadius * 0.8,           // current radius
-    maxR: baseRadius * 2.5 + Math.random() * baseRadius,  // how far it spreads
-    opacity: 0.06 + Math.random() * 0.04,
-    speed: 0.15 + Math.random() * 0.25,  // px per frame
+// ============================================================
+// Bleed Animation — ink slowly spreads into paper over time
+// ============================================================
+function addBleed(x, y, r) {
+  bleedPoints.push({
+    x: x + (Math.random()-0.5)*2,
+    y: y + (Math.random()-0.5)*2,
+    currentR: r * 1.2,
+    maxR: r * 2.5 + Math.random() * r * 1.5,
+    opacity: 0.03 + Math.random() * 0.03,
+    speed: 0.08 + Math.random() * 0.15,
     done: false
   });
 }
 
-function runBleedAnimation() {
-  let active = false;
-  bleedCtx.save();
-  bleedCtx.globalCompositeOperation = 'darken';
-
-  for (const b of bleedBlobs) {
-    if (b.done) continue;
-    b.r += b.speed;
-    if (b.r >= b.maxR) {
-      b.r = b.maxR;
-      b.done = true;
-    } else {
-      active = true;
+function renderBleed() {
+  // Draw bleed spots on ink canvas (they persist because we clear+redraw each frame)
+  inkCtx.save();
+  inkCtx.globalCompositeOperation = 'darken';
+  for (const b of bleedPoints) {
+    if (!b.done) {
+      b.currentR += b.speed;
+      if (b.currentR >= b.maxR) { b.currentR = b.maxR; b.done = true; }
     }
-
-    // Draw expanding bleed ring (donut shape: transparent center, colored mid, transparent edge)
-    const grad = bleedCtx.createRadialGradient(b.x, b.y, b.r * 0.4, b.x, b.y, b.r);
-    grad.addColorStop(0, 'rgba(61,43,26,0)');
-    grad.addColorStop(0.3, `rgba(61,43,26,${b.opacity * 0.5})`);
-    grad.addColorStop(0.6, `rgba(90,58,42,${b.opacity})`);
+    const grad = inkCtx.createRadialGradient(b.x, b.y, b.currentR*0.5, b.x, b.y, b.currentR);
+    grad.addColorStop(0, `rgba(61,43,26,${b.opacity})`);
+    grad.addColorStop(0.7, `rgba(90,58,42,${b.opacity * 0.6})`);
     grad.addColorStop(1, 'rgba(90,58,42,0)');
-    bleedCtx.fillStyle = grad;
-    bleedCtx.beginPath();
-    bleedCtx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-    bleedCtx.fill();
+    inkCtx.fillStyle = grad;
+    inkCtx.beginPath();
+    inkCtx.arc(b.x, b.y, b.currentR, 0, Math.PI*2);
+    inkCtx.fill();
   }
+  inkCtx.restore();
+}
 
-  bleedCtx.restore();
-
-  if (active || isDrawing) {
-    bleedRAF = requestAnimationFrame(runBleedAnimation);
+function bleedLoop() {
+  let active = bleedPoints.some(b => !b.done);
+  if (active) {
+    renderInk(); // re-render everything including updated bleeds
+    bleedFrame = requestAnimationFrame(bleedLoop);
   } else {
-    bleedRAF = null;
+    bleedFrame = null;
+    renderInk(); // final render
   }
 }
 
-function startBleedLoop() {
-  if (!bleedRAF) {
-    bleedRAF = requestAnimationFrame(runBleedAnimation);
-  }
+function startBleed() {
+  if (!bleedFrame) bleedFrame = requestAnimationFrame(bleedLoop);
 }
 
 // ============================================================
-// Scoring (unchanged)
+// Start point indicator — shows where to close the circle
+// ============================================================
+function drawStartIndicator() {
+  if (points.length < 10) return;
+  const start = points[0];
+  const last = points[points.length - 1];
+  const dist = Math.hypot(last.x - start.x, last.y - start.y);
+  const nearClose = dist < CLOSE_DIST * 2;
+
+  // Pulsing ring at start point
+  const t = Date.now() * 0.004;
+  const pulse = nearClose ? 0.35 + Math.sin(t) * 0.15 : 0.12 + Math.sin(t) * 0.05;
+  const radius = nearClose ? 18 + Math.sin(t) * 3 : 14;
+
+  inkCtx.save();
+  inkCtx.strokeStyle = `rgba(26,18,9,${pulse})`;
+  inkCtx.lineWidth = nearClose ? 2 : 1;
+  inkCtx.setLineDash(nearClose ? [] : [4, 4]);
+  inkCtx.beginPath();
+  inkCtx.arc(start.x, start.y, radius, 0, Math.PI * 2);
+  inkCtx.stroke();
+  inkCtx.setLineDash([]);
+  inkCtx.restore();
+}
+
+// ============================================================
+// Scoring
 // ============================================================
 function computeStats(pts) {
-  if (pts.length < 3) return { cx: 0, cy: 0, r: 0, deviations: [] };
-  let cx = 0, cy = 0;
-  for (const p of pts) { cx += p.x; cy += p.y; }
-  cx /= pts.length; cy /= pts.length;
-  let r = 0;
-  for (const p of pts) r += Math.hypot(p.x - cx, p.y - cy);
+  if (pts.length < 3) return { cx:0, cy:0, r:0, deviations:[] };
+  let cx=0, cy=0;
+  for (const p of pts) { cx+=p.x; cy+=p.y; }
+  cx/=pts.length; cy/=pts.length;
+  let r=0;
+  for (const p of pts) r += Math.hypot(p.x-cx, p.y-cy);
   r /= pts.length;
-  const deviations = pts.map(p => Math.abs(Math.hypot(p.x - cx, p.y - cy) - r) / (r || 1));
+  const deviations = pts.map(p => Math.abs(Math.hypot(p.x-cx, p.y-cy) - r) / (r||1));
   return { cx, cy, r, deviations };
 }
 
 function computeScore(pts) {
   if (pts.length < 10) return 0;
   const { cx, cy, r, deviations } = computeStats(pts);
-  const avgDev = deviations.reduce((a, b) => a + b, 0) / deviations.length;
-  const start = pts[0], end = pts[pts.length - 1];
-  const closureGap = Math.hypot(end.x - start.x, end.y - start.y);
-  const closurePenalty = Math.min(closureGap / (r || 1) * 15, 20);
-  const angles = pts.map(p => Math.atan2(p.y - cy, p.x - cx));
+  const avgDev = deviations.reduce((a,b)=>a+b,0) / deviations.length;
+  const start = pts[0], end = pts[pts.length-1];
+  const closureGap = Math.hypot(end.x-start.x, end.y-start.y);
+  const closurePenalty = Math.min(closureGap / (r||1) * 15, 20);
+  const angles = pts.map(p => Math.atan2(p.y-cy, p.x-cx));
   let totalAngle = 0;
-  for (let i = 1; i < angles.length; i++) {
-    let d = angles[i] - angles[i - 1];
-    if (d > Math.PI) d -= 2 * Math.PI;
-    if (d < -Math.PI) d += 2 * Math.PI;
+  for (let i=1; i<angles.length; i++) {
+    let d = angles[i]-angles[i-1];
+    if (d > Math.PI) d -= 2*Math.PI;
+    if (d < -Math.PI) d += 2*Math.PI;
     totalAngle += d;
   }
-  const coverage = Math.abs(totalAngle) / (2 * Math.PI);
-  const coveragePenalty = Math.max(0, (1 - coverage) * 40);
-  return Math.max(0, Math.min(100, 100 - avgDev * 200 - closurePenalty - coveragePenalty));
+  const coverage = Math.abs(totalAngle) / (2*Math.PI);
+  const coveragePenalty = Math.max(0, (1-coverage)*40);
+  return Math.max(0, Math.min(100, 100 - avgDev*200 - closurePenalty - coveragePenalty));
 }
 
-function getGrade(score) {
-  if (score >= 95) return { letter: 'S', color: '#C9922B' };
-  if (score >= 85) return { letter: 'A', color: '#8B1A1A' };
-  if (score >= 70) return { letter: 'B', color: '#3D2B1A' };
-  if (score >= 50) return { letter: 'C', color: '#7A5C3F' };
-  return { letter: 'D', color: '#A89070' };
+function getGrade(s) {
+  if (s >= 95) return { letter:'S', color:'#C9922B' };
+  if (s >= 85) return { letter:'A', color:'#8B1A1A' };
+  if (s >= 70) return { letter:'B', color:'#3D2B1A' };
+  if (s >= 50) return { letter:'C', color:'#7A5C3F' };
+  return { letter:'D', color:'#A89070' };
 }
 
 // ============================================================
-// Input Handlers
+// Input
 // ============================================================
 function getPos(e) {
   if (e.touches) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -526,22 +483,16 @@ function onStart(e) {
   if (isDone) return;
   e.preventDefault();
   initAudio();
-  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-
+  if (ac && ac.state === 'suspended') ac.resume();
   const pos = getPos(e);
-  smoothVelocity = 0;
+  smoothV = 0;
   points = [{ x: pos.x, y: pos.y, t: performance.now(), v: 0 }];
+  bleedPoints = [];
   isDrawing = true;
   hint.style.opacity = '0';
-  startBrush();
-
-  // Start bleed animation loop
-  bleedCtx.clearRect(0, 0, W, H);
-  bleedBlobs = [];
-  addBleedBlob(pos.x, pos.y, brushRadius(0));
-  startBleedLoop();
-
-  drawLiveStroke();
+  startBrushSound();
+  addBleed(pos.x, pos.y, getRadius(0));
+  renderInk();
 }
 
 function onMove(e) {
@@ -555,44 +506,71 @@ function onMove(e) {
   const now = performance.now();
   const dt = now - last.t;
   const rawV = dist / Math.max(dt, 1);
-  smoothVelocity = smoothVelocity * 0.7 + rawV * 0.3;
+  smoothV = smoothV * 0.7 + rawV * 0.3;
 
-  const p = { x: pos.x, y: pos.y, t: now, v: smoothVelocity };
-  points.push(p);
+  points.push({ x: pos.x, y: pos.y, t: now, v: smoothV });
+  updateBrushSound(smoothV);
 
-  updateBrush(smoothVelocity);
+  // Add bleed for this point
+  addBleed(pos.x, pos.y, getRadius(smoothV));
 
-  // Add bleed blob for this point
-  addBleedBlob(p.x, p.y, brushRadius(p.v));
+  // Check if near start point (circle closing)
+  if (points.length > 30) {
+    const start = points[0];
+    const closeDist = Math.hypot(pos.x - start.x, pos.y - start.y);
+    if (closeDist < CLOSE_DIST && computeStats(points).r > 25) {
+      // Circle closed! Finish.
+      finishCircle();
+      return;
+    }
+  }
 
-  // Redraw
-  drawLiveStroke();
+  renderInk();
+  startBleed();
 }
 
 function onEnd(e) {
   if (!isDrawing || isDone) return;
-  // Only finish via explicit pointer release (NOT pointerleave)
-  if (e.type === 'pointerleave') return;
+  if (e.type === 'pointerleave') return; // ignore leave
   e.preventDefault();
   isDrawing = false;
-  stopBrush();
+  stopBrushSound();
 
-  if (points.length < 25) {
-    // Too few points — not a circle attempt, reset
-    points = [];
-    inkCtx.clearRect(0, 0, W, H);
-    bleedCtx.clearRect(0, 0, W, H);
-    bleedBlobs = [];
-    hint.style.opacity = '1';
-    return;
+  // Check if circle was closed (end near start)
+  if (points.length > 30) {
+    const start = points[0], end = points[points.length - 1];
+    const closeDist = Math.hypot(end.x - start.x, end.y - start.y);
+    if (closeDist < CLOSE_DIST && computeStats(points).r > 25) {
+      finishCircle();
+      return;
+    }
   }
 
-  // Circle complete — show result after bleed finishes
-  isDone = true;
-  const score = computeScore(points);
+  // Not closed — just leave the ink on paper, let user try again
+  // Fade the start indicator
+  renderInk();
+  // Reset after a moment so they can draw again
+  setTimeout(() => {
+    if (!isDone && !isDrawing) {
+      points = [];
+      bleedPoints = [];
+      inkCtx.clearRect(0, 0, W, H);
+      hint.style.opacity = '1';
+    }
+  }, 1500);
+}
 
-  // Let bleed finish naturally, then show score
-  setTimeout(() => showResult(score), 800);
+function finishCircle() {
+  isDrawing = false;
+  isDone = true;
+  stopBrushSound();
+
+  // Final render without start indicator
+  renderInk();
+
+  // Let bleed finish, then show score
+  const score = computeScore(points);
+  setTimeout(() => showResult(score), 600);
 }
 
 // ============================================================
@@ -603,49 +581,37 @@ function showResult(score) {
   gradeEl.textContent = grade.letter;
   gradeEl.style.color = grade.color;
   overlay.classList.add('show');
-
-  let current = 0;
+  let cur = 0;
   const target = Math.round(score * 10) / 10;
   const step = target / 60;
-  function countUp() {
-    current += step;
-    if (current >= target) {
-      scoreValue.textContent = target.toFixed(1);
-    } else {
-      scoreValue.textContent = current.toFixed(1);
-      requestAnimationFrame(countUp);
-    }
-  }
-  countUp();
-
+  (function countUp() {
+    cur += step;
+    if (cur >= target) { scoreEl.textContent = target.toFixed(1); }
+    else { scoreEl.textContent = cur.toFixed(1); requestAnimationFrame(countUp); }
+  })();
   if (score > bestScore) {
     bestScore = score;
     try { localStorage.setItem('perfectCircleBest', bestScore.toString()); } catch(e) {}
     newBestEl.classList.add('show');
-    updateBestDisplay();
-  } else {
-    newBestEl.classList.remove('show');
-  }
+    updateBest();
+  } else { newBestEl.classList.remove('show'); }
 }
 
-function updateBestDisplay() {
-  bestScoreValue.textContent = bestScore > 0 ? bestScore.toFixed(1) + '%' : '—';
+function updateBest() {
+  bestScoreEl.textContent = bestScore > 0 ? bestScore.toFixed(1) + '%' : '—';
 }
 
 // ============================================================
 // Reset
 // ============================================================
 function reset() {
-  points = [];
-  bleedBlobs = [];
-  isDrawing = false;
-  isDone = false;
-  if (bleedRAF) { cancelAnimationFrame(bleedRAF); bleedRAF = null; }
+  points = []; bleedPoints = [];
+  isDrawing = false; isDone = false;
+  if (bleedFrame) { cancelAnimationFrame(bleedFrame); bleedFrame = null; }
   overlay.classList.remove('show');
-  scoreValue.textContent = '0';
+  scoreEl.textContent = '0';
   hint.style.opacity = '1';
   inkCtx.clearRect(0, 0, W, H);
-  bleedCtx.clearRect(0, 0, W, H);
 }
 
 // ============================================================
@@ -654,12 +620,11 @@ function reset() {
 inkCanvas.addEventListener('pointerdown', onStart);
 inkCanvas.addEventListener('pointermove', onMove);
 inkCanvas.addEventListener('pointerup', onEnd);
-// pointerleave does NOT trigger finish — user must explicitly lift finger/mouse
 inkCanvas.addEventListener('pointerleave', onEnd);
-inkCanvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+inkCanvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
 retryBtn.addEventListener('click', reset);
-document.addEventListener('keydown', (e) => {
-  if ((e.key === ' ' || e.key === 'Enter' || e.key === 'r' || e.key === 'R') && isDone) reset();
+document.addEventListener('keydown', e => {
+  if ((e.key===' '||e.key==='Enter'||e.key==='r'||e.key==='R') && isDone) reset();
 });
 </script>
 </body>
