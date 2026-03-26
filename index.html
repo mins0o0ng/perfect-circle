@@ -122,11 +122,32 @@ let paperFibers = null;
 let bestScore = 0;
 
 // Bleed system
-let bleedPoints = []; // points waiting to bleed
+let bleedPoints = [];
 let bleedFrame = null;
 
-// Close detection
-const CLOSE_DIST = 35; // px — how close end must be to start
+// Ink splatters (persistent dots generated during drawing)
+let splatters = [];
+
+// Bristle brush configuration
+const BRISTLE_COUNT = 12;
+let bristles = [];
+
+function createBristles() {
+  bristles = [];
+  for (let i = 0; i < BRISTLE_COUNT; i++) {
+    const t = i / (BRISTLE_COUNT - 1); // 0..1
+    const distFromCenter = Math.abs(t - 0.5) * 2; // 0 at center, 1 at edge
+    bristles.push({
+      offset: (t - 0.5) * 2,                                  // -1..1
+      jitter: (Math.random() - 0.5) * 0.12,                   // slight randomness
+      opacity: 0.14 + (1 - distFromCenter) * 0.20 + Math.random() * 0.04,
+      // Center bristles darker (~0.34), edge bristles lighter (~0.14)
+      thickness: 0.5 + Math.random() * 0.8,
+      seed: Math.floor(Math.random() * 10000)                 // for deterministic dry brush
+    });
+  }
+}
+createBristles();
 
 try { bestScore = parseFloat(localStorage.getItem('perfectCircleBest')) || 0; } catch(e) {}
 updateBest();
@@ -185,7 +206,7 @@ window.addEventListener('resize', resize);
 resize();
 
 // ============================================================
-// Hanji Paper
+// Hanji Paper Background
 // ============================================================
 function drawPaper() {
   paperCtx.fillStyle = '#F2EBD9';
@@ -193,12 +214,12 @@ function drawPaper() {
 
   if (!paperFibers || paperFibers._w !== W) {
     paperFibers = []; paperFibers._w = W;
-    for (let i = 0; i < 400; i++) {
+    for (let i = 0; i < 500; i++) {
       paperFibers.push({
         x: Math.random() * W, y: Math.random() * H,
-        a: (Math.random() < 0.7 ? 0 : Math.PI/2) + (Math.random()-0.5)*0.4,
-        l: 12 + Math.random()*50, c: (Math.random()-0.5)*4,
-        o: 0.025 + Math.random()*0.06, w: 0.3 + Math.random()*0.6
+        a: (Math.random() < 0.7 ? 0 : Math.PI / 2) + (Math.random() - 0.5) * 0.4,
+        l: 10 + Math.random() * 60, c: (Math.random() - 0.5) * 5,
+        o: 0.02 + Math.random() * 0.055, w: 0.3 + Math.random() * 0.7
       });
     }
   }
@@ -207,134 +228,241 @@ function drawPaper() {
   for (const f of paperFibers) {
     paperCtx.globalAlpha = f.o; paperCtx.lineWidth = f.w;
     paperCtx.beginPath(); paperCtx.moveTo(f.x, f.y);
-    const ex = f.x + Math.cos(f.a)*f.l, ey = f.y + Math.sin(f.a)*f.l;
-    paperCtx.quadraticCurveTo((f.x+ex)/2 - Math.sin(f.a)*f.c, (f.y+ey)/2 + Math.cos(f.a)*f.c, ex, ey);
+    const ex = f.x + Math.cos(f.a) * f.l, ey = f.y + Math.sin(f.a) * f.l;
+    paperCtx.quadraticCurveTo(
+      (f.x + ex) / 2 - Math.sin(f.a) * f.c,
+      (f.y + ey) / 2 + Math.cos(f.a) * f.c, ex, ey
+    );
     paperCtx.stroke();
   }
   paperCtx.restore();
-  // grain
-  paperCtx.save(); paperCtx.globalAlpha = 0.012;
-  for (let i = 0; i < 2000; i++) {
+  // Grain noise
+  paperCtx.save(); paperCtx.globalAlpha = 0.015;
+  for (let i = 0; i < 3000; i++) {
     paperCtx.fillStyle = Math.random() > 0.5 ? '#C0B090' : '#FFF8E8';
-    paperCtx.fillRect(Math.random()*W, Math.random()*H, 1, 1);
+    paperCtx.fillRect(Math.random() * W, Math.random() * H, 1, 1);
   }
   paperCtx.restore();
 }
 
 // ============================================================
-// Ink Brush — Multi-layer sumi ink rendering
-//
-// Real 수묵 ink on 화선지 has 3 visible layers:
-// 1. Mist (안개): very faint, wide spread beyond stroke
-// 2. Bleed (번짐): medium spread, the "cotton-like" diffusion
-// 3. Core (농묵): dark center where brush pressed
-//
-// We render all 3 using shadowBlur + quadratic curves
+// Brush Width — velocity-responsive (sumi-e: slow=thick, fast=thin)
 // ============================================================
-
-function getRadius(v) {
-  // Slow = thick, fast = thin
-  return Math.max(1.5, 6 * (1 - Math.min(v / 1.8, 1) * 0.55));
+function getWidth(v) {
+  return Math.max(2, 8 * (1 - Math.min(v / 2.0, 1) * 0.6));
 }
+
+// ============================================================
+// Circle Completion — angle-based detection
+//
+// Circle is complete when:
+// 1. The stroke's angular sweep >= 360° (passed start), OR
+// 2. Coverage >= 85% AND the stroke segment crosses start area
+// ============================================================
+function getCoverage() {
+  if (points.length < 10) return 0;
+  let cx = 0, cy = 0;
+  for (const p of points) { cx += p.x; cy += p.y; }
+  cx /= points.length; cy /= points.length;
+
+  let totalAngle = 0;
+  for (let i = 1; i < points.length; i++) {
+    const a0 = Math.atan2(points[i - 1].y - cy, points[i - 1].x - cx);
+    const a1 = Math.atan2(points[i].y - cy, points[i].x - cx);
+    let da = a1 - a0;
+    if (da > Math.PI) da -= 2 * Math.PI;
+    if (da < -Math.PI) da += 2 * Math.PI;
+    totalAngle += da;
+  }
+  return Math.abs(totalAngle) / (2 * Math.PI);
+}
+
+// Does line segment (ax,ay)→(bx,by) pass within radius r of point (cx,cy)?
+function segmentNearPoint(ax, ay, bx, by, cx, cy, r) {
+  const dx = bx - ax, dy = by - ay;
+  const fx = ax - cx, fy = ay - cy;
+  const a = dx * dx + dy * dy;
+  if (a < 0.001) return Math.hypot(fx, fy) < r;
+  const b = 2 * (fx * dx + fy * dy);
+  const c = fx * fx + fy * fy - r * r;
+  let disc = b * b - 4 * a * c;
+  if (disc < 0) return false;
+  disc = Math.sqrt(disc);
+  const t1 = (-b - disc) / (2 * a);
+  const t2 = (-b + disc) / (2 * a);
+  return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1) || (t1 < 0 && t2 > 1);
+}
+
+function isCircleComplete(pos) {
+  if (points.length < 20) return false;
+  const coverage = getCoverage();
+
+  // Passed start point: swept >= 360°
+  if (coverage >= 1.0) return true;
+
+  // Close to start with high coverage
+  const start = points[0];
+  const distToStart = Math.hypot(pos.x - start.x, pos.y - start.y);
+  if (coverage >= 0.85 && distToStart < 18) return true;
+
+  // Stroke segment crosses through start area
+  if (coverage >= 0.75 && points.length > 2) {
+    const prev = points[points.length - 2];
+    if (segmentNearPoint(prev.x, prev.y, pos.x, pos.y, start.x, start.y, 12)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// ============================================================
+// Ink Rendering — Bristle-based sumi-e brush
+//
+// 12 bristles simulate real brush hairs on paper.
+// Each bristle is a thin semi-transparent line offset from center.
+// Overlapping bristles naturally create:
+//   - Dark center (농묵) from many overlaps
+//   - Lighter edges (담묵) from fewer overlaps
+//   - Visible brush texture from individual bristle paths
+// At high velocity, outer bristles break = dry brush (비백/飛白)
+// ============================================================
 
 function renderInk() {
   inkCtx.clearRect(0, 0, W, H);
   if (points.length < 2) {
     if (points.length === 1) {
-      // Single dot
-      const p = points[0], r = getRadius(0);
+      const p = points[0], w = getWidth(0);
       inkCtx.save();
-      inkCtx.fillStyle = 'rgba(26,18,9,0.7)';
-      inkCtx.shadowColor = 'rgba(26,18,9,0.3)';
-      inkCtx.shadowBlur = r * 3;
-      inkCtx.beginPath(); inkCtx.arc(p.x, p.y, r, 0, Math.PI*2); inkCtx.fill();
+      inkCtx.fillStyle = 'rgba(26,18,9,0.55)';
+      inkCtx.shadowColor = 'rgba(26,18,9,0.25)';
+      inkCtx.shadowBlur = w * 3;
+      inkCtx.beginPath(); inkCtx.arc(p.x, p.y, w * 0.8, 0, Math.PI * 2); inkCtx.fill();
       inkCtx.restore();
     }
     return;
   }
 
-  // Build smooth path via quadratic bezier midpoints
-  const smoothPath = [];
-  smoothPath.push({ x: points[0].x, y: points[0].y, v: points[0].v });
-  for (let i = 1; i < points.length - 1; i++) {
-    const p = points[i], n = points[i+1];
-    smoothPath.push({ x: p.x, y: p.y, v: p.v });
-    // midpoint
-    smoothPath.push({ x: (p.x+n.x)/2, y: (p.y+n.y)/2, v: (p.v+n.v)/2 });
-  }
-  smoothPath.push(points[points.length-1]);
-
-  // --- Layer 1: Mist (안개 확산) ---
-  // Very wide, very faint — simulates ink vapor spreading into fibers
-  inkCtx.save();
-  inkCtx.strokeStyle = 'rgba(61,43,26,0.06)';
-  inkCtx.lineCap = 'round'; inkCtx.lineJoin = 'round';
-  inkCtx.shadowColor = 'rgba(61,43,26,0.08)';
-  inkCtx.shadowBlur = 25;
-  inkCtx.lineWidth = 18;
-  drawSmoothPath(inkCtx, points);
-  inkCtx.restore();
-
-  // --- Layer 2: Bleed (번짐) ---
-  // Medium width, medium opacity — the cotton-like diffusion
-  inkCtx.save();
-  inkCtx.strokeStyle = 'rgba(38,28,16,0.15)';
-  inkCtx.lineCap = 'round'; inkCtx.lineJoin = 'round';
-  inkCtx.shadowColor = 'rgba(26,18,9,0.12)';
-  inkCtx.shadowBlur = 12;
-  inkCtx.lineWidth = 10;
-  drawSmoothPath(inkCtx, points);
-  inkCtx.restore();
-
-  // --- Layer 3: Core ink (농묵) ---
-  // Variable width, dark — where the brush touched
-  inkCtx.save();
-  inkCtx.lineCap = 'round'; inkCtx.lineJoin = 'round';
-  for (let i = 1; i < points.length; i++) {
-    const p0 = points[i-1], p1 = points[i];
-    const r = getRadius(p1.v);
-    inkCtx.strokeStyle = `rgba(26,18,9,${0.75 + Math.random()*0.15})`;
-    inkCtx.lineWidth = r * 1.6;
-    inkCtx.shadowColor = 'rgba(26,18,9,0.2)';
-    inkCtx.shadowBlur = 3;
-    inkCtx.beginPath();
-    inkCtx.moveTo(p0.x, p0.y);
-    // Quadratic curve to midpoint for smoothness
+  // Precompute normals for each point
+  const normals = [];
+  for (let i = 0; i < points.length; i++) {
+    let nx = 0, ny = 0;
     if (i < points.length - 1) {
-      const mid = { x: (p1.x + points[i+1].x)/2, y: (p1.y + points[i+1].y)/2 };
-      inkCtx.quadraticCurveTo(p1.x, p1.y, mid.x, mid.y);
-    } else {
-      inkCtx.lineTo(p1.x, p1.y);
+      const dx = points[i + 1].x - points[i].x;
+      const dy = points[i + 1].y - points[i].y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      nx = -dy / len; ny = dx / len;
+    } else if (i > 0) {
+      nx = normals[i - 1].x; ny = normals[i - 1].y;
     }
-    inkCtx.stroke();
+    normals.push({ x: nx, y: ny });
+  }
+
+  // --- Layer 1: Ink mist (안개) — wide faint halo ---
+  inkCtx.save();
+  inkCtx.strokeStyle = 'rgba(61,43,26,0.025)';
+  inkCtx.lineCap = 'round'; inkCtx.lineJoin = 'round';
+  inkCtx.shadowColor = 'rgba(61,43,26,0.04)';
+  inkCtx.shadowBlur = 45;
+  inkCtx.lineWidth = 36;
+  drawSmoothPath(inkCtx, points);
+  inkCtx.restore();
+
+  // --- Layer 1b: Secondary bleed halo (번짐 확산) ---
+  inkCtx.save();
+  inkCtx.strokeStyle = 'rgba(50,38,22,0.04)';
+  inkCtx.lineCap = 'round'; inkCtx.lineJoin = 'round';
+  inkCtx.shadowColor = 'rgba(50,38,22,0.035)';
+  inkCtx.shadowBlur = 22;
+  inkCtx.lineWidth = 20;
+  drawSmoothPath(inkCtx, points);
+  inkCtx.restore();
+
+  // --- Layer 2: Bristle brush (main ink body) ---
+  inkCtx.save();
+  inkCtx.lineCap = 'round'; inkCtx.lineJoin = 'round';
+
+  for (const b of bristles) {
+    const isOuter = Math.abs(b.offset) > 0.6;
+
+    // Build bristle path points
+    const bpts = [];
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      const n = normals[i];
+      const w = getWidth(p.v);
+      const off = (b.offset + b.jitter) * w;
+      bpts.push({ x: p.x + n.x * off, y: p.y + n.y * off, v: p.v });
+    }
+
+    inkCtx.strokeStyle = `rgba(26,18,9,${b.opacity})`;
+    inkCtx.lineWidth = b.thickness;
+    inkCtx.shadowColor = 'rgba(26,18,9,0.03)';
+    inkCtx.shadowBlur = 1.5;
+
+    // Split path into segments for dry brush gaps (비백)
+    // Outer bristles break at high velocity — deterministic based on seed
+    let segments = [[]];
+    for (let i = 0; i < bpts.length; i++) {
+      const v = bpts[i].v;
+      const dryThreshold = isOuter ? 0.6 : 1.2;
+      // Deterministic gap pattern using seed + index
+      const hash = ((i * 7 + b.seed) * 2654435761) >>> 0;
+      const skipChance = Math.max(0, (v - dryThreshold) * 0.4);
+      if (skipChance > 0 && (hash % 100) < skipChance * 100) {
+        if (segments[segments.length - 1].length > 0) segments.push([]);
+        continue;
+      }
+      segments[segments.length - 1].push(bpts[i]);
+    }
+
+    // Draw each segment as smooth quadratic path
+    for (const seg of segments) {
+      if (seg.length < 2) continue;
+      inkCtx.beginPath();
+      inkCtx.moveTo(seg[0].x, seg[0].y);
+      for (let i = 1; i < seg.length - 1; i++) {
+        const mid = { x: (seg[i].x + seg[i + 1].x) / 2, y: (seg[i].y + seg[i + 1].y) / 2 };
+        inkCtx.quadraticCurveTo(seg[i].x, seg[i].y, mid.x, mid.y);
+      }
+      inkCtx.lineTo(seg[seg.length - 1].x, seg[seg.length - 1].y);
+      inkCtx.stroke();
+    }
   }
   inkCtx.shadowBlur = 0;
   inkCtx.restore();
 
-  // --- Layer 4: Edge bleed dots (섬유 따라 번짐) ---
-  // Tiny scattered dots along edges — ink following paper fibers
+  // --- Layer 3: Ink pooling at start point (먹 고임) ---
+  const startP = points[0];
+  const startW = getWidth(0);
   inkCtx.save();
-  inkCtx.fillStyle = 'rgba(61,43,26,0.08)';
-  for (let i = 0; i < points.length; i += 2) {
-    const p = points[i], r = getRadius(p.v);
-    const count = 3 + Math.floor(Math.random() * 4);
-    for (let j = 0; j < count; j++) {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = r + 2 + Math.random() * (r * 1.5);
-      const size = 0.3 + Math.random() * 1.2;
-      inkCtx.beginPath();
-      inkCtx.arc(p.x + Math.cos(angle)*dist, p.y + Math.sin(angle)*dist, size, 0, Math.PI*2);
-      inkCtx.fill();
-    }
-  }
+  const poolGrad = inkCtx.createRadialGradient(
+    startP.x, startP.y, 0, startP.x, startP.y, startW * 1.8
+  );
+  poolGrad.addColorStop(0, 'rgba(26,18,9,0.45)');
+  poolGrad.addColorStop(0.5, 'rgba(26,18,9,0.2)');
+  poolGrad.addColorStop(1, 'rgba(26,18,9,0)');
+  inkCtx.fillStyle = poolGrad;
+  inkCtx.beginPath(); inkCtx.arc(startP.x, startP.y, startW * 1.8, 0, Math.PI * 2); inkCtx.fill();
   inkCtx.restore();
 
-  // --- Bleed spread animation on separate pass ---
-  // Expand existing bleed spots
+  // --- Layer 4: Ink splatters (먹 튀김) ---
+  if (splatters.length > 0) {
+    inkCtx.save();
+    for (const s of splatters) {
+      inkCtx.fillStyle = `rgba(26,18,9,${s.o})`;
+      inkCtx.beginPath();
+      inkCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      inkCtx.fill();
+    }
+    inkCtx.restore();
+  }
+
+  // --- Bleed expansion ---
   renderBleed();
 
-  // --- Start point indicator (when drawing) ---
-  if (isDrawing && points.length > 5) {
+  // --- Start indicator (while drawing) ---
+  if (isDrawing && points.length > 10) {
     drawStartIndicator();
   }
 }
@@ -344,30 +472,44 @@ function drawSmoothPath(ctx, pts) {
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < pts.length - 1; i++) {
-    const mid = { x: (pts[i].x + pts[i+1].x)/2, y: (pts[i].y + pts[i+1].y)/2 };
+    const mid = { x: (pts[i].x + pts[i + 1].x) / 2, y: (pts[i].y + pts[i + 1].y) / 2 };
     ctx.quadraticCurveTo(pts[i].x, pts[i].y, mid.x, mid.y);
   }
-  ctx.lineTo(pts[pts.length-1].x, pts[pts.length-1].y);
+  ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
   ctx.stroke();
 }
 
 // ============================================================
-// Bleed Animation — ink slowly spreads into paper over time
+// Bleed Animation — ink slowly spreads into paper
 // ============================================================
-function addBleed(x, y, r) {
+function addBleed(x, y, w) {
+  // Main bleed — wide spread
   bleedPoints.push({
-    x: x + (Math.random()-0.5)*2,
-    y: y + (Math.random()-0.5)*2,
-    currentR: r * 1.2,
-    maxR: r * 2.5 + Math.random() * r * 1.5,
-    opacity: 0.03 + Math.random() * 0.03,
-    speed: 0.08 + Math.random() * 0.15,
+    x: x + (Math.random() - 0.5) * 3,
+    y: y + (Math.random() - 0.5) * 3,
+    currentR: w * 1.5,
+    maxR: w * 4.0 + Math.random() * w * 3.0,
+    opacity: 0.015 + Math.random() * 0.02,
+    speed: 0.04 + Math.random() * 0.10,
     done: false
   });
+  // Secondary micro-bleed — farther, fainter
+  if (Math.random() < 0.4) {
+    const angle = Math.random() * Math.PI * 2;
+    const drift = w * 1.5 + Math.random() * w;
+    bleedPoints.push({
+      x: x + Math.cos(angle) * drift,
+      y: y + Math.sin(angle) * drift,
+      currentR: w * 0.5,
+      maxR: w * 2.0 + Math.random() * w * 2.0,
+      opacity: 0.01 + Math.random() * 0.015,
+      speed: 0.03 + Math.random() * 0.08,
+      done: false
+    });
+  }
 }
 
 function renderBleed() {
-  // Draw bleed spots on ink canvas (they persist because we clear+redraw each frame)
   inkCtx.save();
   inkCtx.globalCompositeOperation = 'darken';
   for (const b of bleedPoints) {
@@ -375,26 +517,26 @@ function renderBleed() {
       b.currentR += b.speed;
       if (b.currentR >= b.maxR) { b.currentR = b.maxR; b.done = true; }
     }
-    const grad = inkCtx.createRadialGradient(b.x, b.y, b.currentR*0.5, b.x, b.y, b.currentR);
+    const grad = inkCtx.createRadialGradient(b.x, b.y, b.currentR * 0.3, b.x, b.y, b.currentR);
     grad.addColorStop(0, `rgba(61,43,26,${b.opacity})`);
-    grad.addColorStop(0.7, `rgba(90,58,42,${b.opacity * 0.6})`);
+    grad.addColorStop(0.4, `rgba(75,50,35,${b.opacity * 0.7})`);
+    grad.addColorStop(0.7, `rgba(90,58,42,${b.opacity * 0.35})`);
     grad.addColorStop(1, 'rgba(90,58,42,0)');
     inkCtx.fillStyle = grad;
     inkCtx.beginPath();
-    inkCtx.arc(b.x, b.y, b.currentR, 0, Math.PI*2);
+    inkCtx.arc(b.x, b.y, b.currentR, 0, Math.PI * 2);
     inkCtx.fill();
   }
   inkCtx.restore();
 }
 
 function bleedLoop() {
-  let active = bleedPoints.some(b => !b.done);
-  if (active) {
-    renderInk(); // re-render everything including updated bleeds
+  if (bleedPoints.some(b => !b.done)) {
+    renderInk();
     bleedFrame = requestAnimationFrame(bleedLoop);
   } else {
     bleedFrame = null;
-    renderInk(); // final render
+    renderInk();
   }
 }
 
@@ -403,24 +545,23 @@ function startBleed() {
 }
 
 // ============================================================
-// Start point indicator — shows where to close the circle
+// Start point indicator
 // ============================================================
 function drawStartIndicator() {
-  if (points.length < 10) return;
   const start = points[0];
   const last = points[points.length - 1];
   const dist = Math.hypot(last.x - start.x, last.y - start.y);
-  const nearClose = dist < CLOSE_DIST * 2;
+  const coverage = getCoverage();
+  const nearClose = coverage > 0.65 && dist < 60;
 
-  // Pulsing ring at start point
   const t = Date.now() * 0.004;
-  const pulse = nearClose ? 0.35 + Math.sin(t) * 0.15 : 0.12 + Math.sin(t) * 0.05;
-  const radius = nearClose ? 18 + Math.sin(t) * 3 : 14;
+  const pulse = nearClose ? 0.30 + Math.sin(t) * 0.15 : 0.08 + Math.sin(t) * 0.04;
+  const radius = nearClose ? 15 + Math.sin(t) * 2 : 11;
 
   inkCtx.save();
   inkCtx.strokeStyle = `rgba(26,18,9,${pulse})`;
-  inkCtx.lineWidth = nearClose ? 2 : 1;
-  inkCtx.setLineDash(nearClose ? [] : [4, 4]);
+  inkCtx.lineWidth = nearClose ? 1.5 : 0.8;
+  inkCtx.setLineDash(nearClose ? [] : [3, 3]);
   inkCtx.beginPath();
   inkCtx.arc(start.x, start.y, radius, 0, Math.PI * 2);
   inkCtx.stroke();
@@ -432,43 +573,43 @@ function drawStartIndicator() {
 // Scoring
 // ============================================================
 function computeStats(pts) {
-  if (pts.length < 3) return { cx:0, cy:0, r:0, deviations:[] };
-  let cx=0, cy=0;
-  for (const p of pts) { cx+=p.x; cy+=p.y; }
-  cx/=pts.length; cy/=pts.length;
-  let r=0;
-  for (const p of pts) r += Math.hypot(p.x-cx, p.y-cy);
+  if (pts.length < 3) return { cx: 0, cy: 0, r: 0, deviations: [] };
+  let cx = 0, cy = 0;
+  for (const p of pts) { cx += p.x; cy += p.y; }
+  cx /= pts.length; cy /= pts.length;
+  let r = 0;
+  for (const p of pts) r += Math.hypot(p.x - cx, p.y - cy);
   r /= pts.length;
-  const deviations = pts.map(p => Math.abs(Math.hypot(p.x-cx, p.y-cy) - r) / (r||1));
+  const deviations = pts.map(p => Math.abs(Math.hypot(p.x - cx, p.y - cy) - r) / (r || 1));
   return { cx, cy, r, deviations };
 }
 
 function computeScore(pts) {
   if (pts.length < 10) return 0;
   const { cx, cy, r, deviations } = computeStats(pts);
-  const avgDev = deviations.reduce((a,b)=>a+b,0) / deviations.length;
-  const start = pts[0], end = pts[pts.length-1];
-  const closureGap = Math.hypot(end.x-start.x, end.y-start.y);
-  const closurePenalty = Math.min(closureGap / (r||1) * 15, 20);
-  const angles = pts.map(p => Math.atan2(p.y-cy, p.x-cx));
+  const avgDev = deviations.reduce((a, b) => a + b, 0) / deviations.length;
+  const start = pts[0], end = pts[pts.length - 1];
+  const closureGap = Math.hypot(end.x - start.x, end.y - start.y);
+  const closurePenalty = Math.min(closureGap / (r || 1) * 15, 20);
+  const angles = pts.map(p => Math.atan2(p.y - cy, p.x - cx));
   let totalAngle = 0;
-  for (let i=1; i<angles.length; i++) {
-    let d = angles[i]-angles[i-1];
-    if (d > Math.PI) d -= 2*Math.PI;
-    if (d < -Math.PI) d += 2*Math.PI;
+  for (let i = 1; i < angles.length; i++) {
+    let d = angles[i] - angles[i - 1];
+    if (d > Math.PI) d -= 2 * Math.PI;
+    if (d < -Math.PI) d += 2 * Math.PI;
     totalAngle += d;
   }
-  const coverage = Math.abs(totalAngle) / (2*Math.PI);
-  const coveragePenalty = Math.max(0, (1-coverage)*40);
-  return Math.max(0, Math.min(100, 100 - avgDev*200 - closurePenalty - coveragePenalty));
+  const coverage = Math.abs(totalAngle) / (2 * Math.PI);
+  const coveragePenalty = Math.max(0, (1 - coverage) * 40);
+  return Math.max(0, Math.min(100, 100 - avgDev * 200 - closurePenalty - coveragePenalty));
 }
 
 function getGrade(s) {
-  if (s >= 95) return { letter:'S', color:'#C9922B' };
-  if (s >= 85) return { letter:'A', color:'#8B1A1A' };
-  if (s >= 70) return { letter:'B', color:'#3D2B1A' };
-  if (s >= 50) return { letter:'C', color:'#7A5C3F' };
-  return { letter:'D', color:'#A89070' };
+  if (s >= 95) return { letter: 'S', color: '#C9922B' };
+  if (s >= 85) return { letter: 'A', color: '#8B1A1A' };
+  if (s >= 70) return { letter: 'B', color: '#3D2B1A' };
+  if (s >= 50) return { letter: 'C', color: '#7A5C3F' };
+  return { letter: 'D', color: '#A89070' };
 }
 
 // ============================================================
@@ -488,10 +629,12 @@ function onStart(e) {
   smoothV = 0;
   points = [{ x: pos.x, y: pos.y, t: performance.now(), v: 0 }];
   bleedPoints = [];
+  splatters = [];
   isDrawing = true;
+  createBristles(); // Fresh bristle config each stroke
   hint.style.opacity = '0';
   startBrushSound();
-  addBleed(pos.x, pos.y, getRadius(0));
+  addBleed(pos.x, pos.y, getWidth(0));
   renderInk();
 }
 
@@ -510,19 +653,24 @@ function onMove(e) {
 
   points.push({ x: pos.x, y: pos.y, t: now, v: smoothV });
   updateBrushSound(smoothV);
+  addBleed(pos.x, pos.y, getWidth(smoothV));
 
-  // Add bleed for this point
-  addBleed(pos.x, pos.y, getRadius(smoothV));
+  // Generate ink splatters at velocity spikes
+  if (smoothV > 0.6 && Math.random() < smoothV * 0.3) {
+    const angle = Math.random() * Math.PI * 2;
+    const spDist = getWidth(smoothV) + 3 + Math.random() * 12;
+    splatters.push({
+      x: pos.x + Math.cos(angle) * spDist,
+      y: pos.y + Math.sin(angle) * spDist,
+      r: 0.3 + Math.random() * 1.5,
+      o: 0.05 + Math.random() * 0.15
+    });
+  }
 
-  // Check if near start point (circle closing)
-  if (points.length > 30) {
-    const start = points[0];
-    const closeDist = Math.hypot(pos.x - start.x, pos.y - start.y);
-    if (closeDist < CLOSE_DIST && computeStats(points).r > 25) {
-      // Circle closed! Finish.
-      finishCircle();
-      return;
-    }
+  // Circle completion check
+  if (isCircleComplete(pos)) {
+    finishCircle();
+    return;
   }
 
   renderInk();
@@ -531,29 +679,27 @@ function onMove(e) {
 
 function onEnd(e) {
   if (!isDrawing || isDone) return;
-  if (e.type === 'pointerleave') return; // ignore leave
+  if (e.type === 'pointerleave') return;
   e.preventDefault();
   isDrawing = false;
   stopBrushSound();
 
-  // Check if circle was closed (end near start)
-  if (points.length > 30) {
-    const start = points[0], end = points[points.length - 1];
-    const closeDist = Math.hypot(end.x - start.x, end.y - start.y);
-    if (closeDist < CLOSE_DIST && computeStats(points).r > 25) {
+  // Final check: is circle complete?
+  if (points.length > 20) {
+    const end = points[points.length - 1];
+    if (isCircleComplete(end)) {
       finishCircle();
       return;
     }
   }
 
-  // Not closed — just leave the ink on paper, let user try again
-  // Fade the start indicator
+  // Not complete — leave ink, reset after delay
   renderInk();
-  // Reset after a moment so they can draw again
   setTimeout(() => {
     if (!isDone && !isDrawing) {
       points = [];
       bleedPoints = [];
+      splatters = [];
       inkCtx.clearRect(0, 0, W, H);
       hint.style.opacity = '1';
     }
@@ -564,11 +710,7 @@ function finishCircle() {
   isDrawing = false;
   isDone = true;
   stopBrushSound();
-
-  // Final render without start indicator
   renderInk();
-
-  // Let bleed finish, then show score
   const score = computeScore(points);
   setTimeout(() => showResult(score), 600);
 }
@@ -605,7 +747,7 @@ function updateBest() {
 // Reset
 // ============================================================
 function reset() {
-  points = []; bleedPoints = [];
+  points = []; bleedPoints = []; splatters = [];
   isDrawing = false; isDone = false;
   if (bleedFrame) { cancelAnimationFrame(bleedFrame); bleedFrame = null; }
   overlay.classList.remove('show');
@@ -624,7 +766,7 @@ inkCanvas.addEventListener('pointerleave', onEnd);
 inkCanvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
 retryBtn.addEventListener('click', reset);
 document.addEventListener('keydown', e => {
-  if ((e.key===' '||e.key==='Enter'||e.key==='r'||e.key==='R') && isDone) reset();
+  if ((e.key === ' ' || e.key === 'Enter' || e.key === 'r' || e.key === 'R') && isDone) reset();
 });
 </script>
 </body>
