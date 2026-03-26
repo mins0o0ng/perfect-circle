@@ -3,17 +3,35 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Perfect Circle Challenge</title>
+<title>Circle Void — 원을 그려 구멍을 열어라</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&display=swap">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+
+  :root {
+    --cv-bg-paper: #F2EBD9;
+    --cv-ink-dark: #1A1209;
+    --cv-ink-mid: #3D2B1A;
+    --cv-ink-light: #7A5C3F;
+    --cv-ink-ghost: rgba(26,18,9,0.08);
+    --cv-void-core: #0A0806;
+    --cv-void-mid: #1A1209;
+    --cv-void-edge: #2A1F14;
+    --cv-grade-s: #C9922B;
+    --cv-grade-a: #8B1A1A;
+    --cv-grade-b: #3D2B1A;
+    --cv-grade-c: #7A5C3F;
+    --cv-grade-d: #A89070;
+    --cv-font-display: 'Noto Serif KR', serif;
+    --cv-font-body: 'Pretendard', sans-serif;
+  }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    background: #0a0a0f;
+    background: var(--cv-bg-paper);
     overflow: hidden;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    color: #fff;
+    font-family: var(--cv-font-body);
+    color: var(--cv-ink-dark);
     touch-action: none;
     -webkit-user-select: none;
     user-select: none;
@@ -25,6 +43,10 @@
     top: 0; left: 0;
     width: 100vw; height: 100vh;
   }
+
+  #bg-canvas { z-index: 0; }
+  #main-canvas { z-index: 1; }
+  #fx-canvas { z-index: 2; }
 
   #ui-layer {
     position: fixed;
@@ -45,216 +67,588 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(255,255,255,0.06);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(26,18,9,0.05);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(26,18,9,0.10);
     border-radius: 12px;
-    padding: 10px 18px;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--cv-ink-mid);
   }
 
-  .best-score .trophy { font-size: 18px; }
-  .best-score .value { color: #ffd700; }
+  .best-score span {
+    font-weight: 600;
+    color: var(--cv-ink-dark);
+  }
 
   .hint {
     position: fixed;
-    bottom: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 15px;
-    font-weight: 300;
-    color: rgba(255,255,255,0.35);
-    letter-spacing: 1px;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--cv-font-display);
+    font-size: 18px;
+    color: rgba(26,18,9,0.30);
+    letter-spacing: 0.08em;
     transition: opacity 0.5s;
+    pointer-events: none;
   }
 
-  /* Result overlay */
   #result-overlay {
     position: fixed;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    display: none;
-    justify-content: center;
+    display: flex;
     align-items: center;
-    z-index: 20;
+    justify-content: center;
+    opacity: 0;
     pointer-events: none;
+    transition: opacity 0.4s;
+    z-index: 20;
   }
 
   #result-overlay.show {
-    display: flex;
+    opacity: 1;
     pointer-events: auto;
   }
 
   .result-card {
-    background: rgba(12, 12, 20, 0.92);
-    backdrop-filter: blur(30px);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 28px;
-    padding: 50px 60px;
+    background: rgba(242,235,217,0.94);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(26,18,9,0.10);
+    border-radius: 20px;
+    padding: 40px 48px;
     text-align: center;
-    transform: scale(0.8);
-    opacity: 0;
-    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 8px 32px rgba(26,18,9,0.08);
   }
 
-  #result-overlay.show .result-card {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  .result-card .grade {
-    font-size: 64px;
-    font-weight: 800;
+  .grade {
+    font-family: var(--cv-font-display);
+    font-size: 72px;
+    font-weight: 700;
     line-height: 1;
     margin-bottom: 8px;
   }
 
-  .result-card .score-display {
-    font-size: 48px;
-    font-weight: 300;
-    margin-bottom: 6px;
-  }
-
-  .result-card .score-display .pct { font-weight: 800; }
-
-  .result-card .label {
+  .score-label {
     font-size: 13px;
-    color: rgba(255,255,255,0.4);
-    letter-spacing: 2px;
+    color: var(--cv-ink-light);
+    margin-bottom: 4px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    margin-bottom: 30px;
   }
 
-  .result-card .new-best {
-    display: none;
-    font-size: 13px;
+  .score-value {
+    font-size: 32px;
     font-weight: 600;
-    color: #ffd700;
-    letter-spacing: 1px;
+    color: var(--cv-ink-dark);
     margin-bottom: 20px;
-    animation: pulse-glow 1.5s ease-in-out infinite;
   }
 
-  .result-card .new-best.show { display: block; }
+  .new-best {
+    display: none;
+    font-family: var(--cv-font-display);
+    font-size: 13px;
+    color: var(--cv-grade-s);
+    margin-bottom: 16px;
+    letter-spacing: 0.06em;
+  }
+
+  .new-best.show { display: block; }
 
   .retry-btn {
-    pointer-events: auto;
-    cursor: pointer;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 14px;
-    color: #fff;
-    font-family: inherit;
+    background: var(--cv-ink-dark);
+    color: var(--cv-bg-paper);
+    border: none;
+    border-radius: 10px;
+    padding: 12px 36px;
+    font-family: var(--cv-font-body);
     font-size: 15px;
     font-weight: 500;
-    padding: 14px 40px;
-    letter-spacing: 0.5px;
-    transition: all 0.25s;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    pointer-events: auto;
   }
 
-  .retry-btn:hover {
-    background: rgba(255,255,255,0.14);
-    border-color: rgba(255,255,255,0.25);
-    transform: translateY(-1px);
-  }
-
-  @keyframes pulse-glow {
-    0%, 100% { opacity: 0.7; }
-    50% { opacity: 1; }
-  }
+  .retry-btn:hover { opacity: 0.8; }
 </style>
 </head>
 <body>
 
-<canvas id="canvas"></canvas>
+<canvas id="bg-canvas"></canvas>
+<canvas id="main-canvas"></canvas>
+<canvas id="fx-canvas"></canvas>
 
 <div id="ui-layer">
   <div class="top-bar">
-    <div class="best-score">
-      <span class="trophy">&#127942;</span>
-      <span>BEST</span>
-      <span class="value" id="best-score-value">—</span>
-    </div>
+    <div class="best-score">최고 <span id="best-score-value">—</span></div>
   </div>
-  <div class="hint" id="hint">드래그하여 원을 그려보세요</div>
+  <div class="hint" id="hint">붓을 들어 원을 그리세요</div>
 </div>
 
 <div id="result-overlay">
   <div class="result-card">
-    <div class="grade" id="grade"></div>
-    <div class="score-display"><span class="pct" id="score-value">0</span>%</div>
-    <div class="label">ACCURACY</div>
-    <div class="new-best" id="new-best">&#9733; NEW BEST RECORD &#9733;</div>
-    <button class="retry-btn" id="retry-btn">다시 도전</button>
+    <div class="grade" id="grade">S</div>
+    <div class="score-label">정확도</div>
+    <div class="score-value"><span id="score-value">0</span>%</div>
+    <div class="new-best" id="new-best">새로운 기록!</div>
+    <button class="retry-btn" id="retry-btn">다시 그리기</button>
   </div>
 </div>
 
 <script>
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const hint = document.getElementById('hint');
+// ============================================================
+// Canvas Setup — 3-Layer Architecture
+// ============================================================
+const bgCanvas = document.getElementById('bg-canvas');
+const mainCanvas = document.getElementById('main-canvas');
+const fxCanvas = document.getElementById('fx-canvas');
+const bgCtx = bgCanvas.getContext('2d');
+const mainCtx = mainCanvas.getContext('2d');
+const fxCtx = fxCanvas.getContext('2d');
+
 const overlay = document.getElementById('result-overlay');
+const hint = document.getElementById('hint');
 const scoreValue = document.getElementById('score-value');
 const gradeEl = document.getElementById('grade');
 const newBestEl = document.getElementById('new-best');
 const bestScoreValue = document.getElementById('best-score-value');
 const retryBtn = document.getElementById('retry-btn');
 
-let W, H;
+let W, H, dpr;
 let points = [];
-let particles = [];
-let ripples = [];
+let inkParticles = [];
+let fiberParticles = [];
 let isDrawing = false;
 let isDone = false;
 let animFrame;
-let gridOffset = 0;
+let finalStats = null;
+let tornPath = null;
+let animStartTime = 0;
+let animPhase = 'idle'; // idle | soaking | anticipation | cracking | tearing | revealing | stable
+let tearProgress = 0;
+let smoothVelocity = 0;
+let inkSwirlAngle = 0;
+let paperFiberCache = null;
 
-// --- State ---
-let centroid = { x: 0, y: 0 };
-let avgRadius = 0;
 let bestScore = 0;
-try {
-  bestScore = parseFloat(localStorage.getItem('perfectCircleBest')) || 0;
-} catch (e) {
-  // localStorage unavailable (private browsing, etc.)
+try { bestScore = parseFloat(localStorage.getItem('perfectCircleBest')) || 0; } catch(e) {}
+updateBestDisplay();
+
+// ============================================================
+// Audio System — Web Audio API Synthesis
+// ============================================================
+let audioCtx = null;
+let brushNoiseNode = null;
+let brushGain = null;
+let brushFilter = null;
+let noiseBuffer = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  // Pre-generate noise buffer (2 seconds)
+  const bufferSize = audioCtx.sampleRate * 2;
+  noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
 }
 
+function startBrushSound() {
+  if (!audioCtx) return;
+  brushNoiseNode = audioCtx.createBufferSource();
+  brushNoiseNode.buffer = noiseBuffer;
+  brushNoiseNode.loop = true;
+
+  brushFilter = audioCtx.createBiquadFilter();
+  brushFilter.type = 'bandpass';
+  brushFilter.frequency.value = 1200;
+  brushFilter.Q.value = 0.8;
+
+  brushGain = audioCtx.createGain();
+  brushGain.gain.value = 0;
+
+  brushNoiseNode.connect(brushFilter);
+  brushFilter.connect(brushGain);
+  brushGain.connect(audioCtx.destination);
+  brushNoiseNode.start();
+}
+
+function updateBrushSound(velocity) {
+  if (!brushGain || !brushFilter) return;
+  const normV = Math.min(velocity / 1.5, 1);
+  brushGain.gain.setTargetAtTime(0.03 + normV * 0.05, audioCtx.currentTime, 0.05);
+  brushFilter.frequency.setTargetAtTime(800 + normV * 1400, audioCtx.currentTime, 0.05);
+}
+
+function stopBrushSound() {
+  if (brushGain) {
+    brushGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.08);
+    setTimeout(() => {
+      if (brushNoiseNode) { try { brushNoiseNode.stop(); } catch(e) {} }
+      brushNoiseNode = null;
+    }, 200);
+  }
+}
+
+function playInkSoakSound() {
+  if (!audioCtx) return;
+  const src = audioCtx.createBufferSource();
+  src.buffer = noiseBuffer;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 400;
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.15);
+  gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+  src.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+  src.start();
+  src.stop(audioCtx.currentTime + 0.6);
+}
+
+function playTearSound(duration) {
+  if (!audioCtx) return;
+  const src = audioCtx.createBufferSource();
+  src.buffer = noiseBuffer;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'highpass';
+  filter.frequency.value = 2500;
+  filter.Q.value = 0.5;
+  const gain = audioCtx.createGain();
+  const t = audioCtx.currentTime;
+  const dur = duration / 1000;
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(0.08, t + 0.05);
+  gain.gain.setValueAtTime(0.08, t + dur * 0.3);
+  gain.gain.exponentialRampToValueAtTime(0.01, t + dur);
+  src.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+  src.start();
+  src.stop(audioCtx.currentTime + dur + 0.1);
+}
+
+// ============================================================
+// Resize — All 3 Canvases
+// ============================================================
 function resize() {
-  const dpr = window.devicePixelRatio || 1;
+  dpr = window.devicePixelRatio || 1;
   W = window.innerWidth;
   H = window.innerHeight;
-  canvas.width = W * dpr;
-  canvas.height = H * dpr;
-  canvas.style.width = W + 'px';
-  canvas.style.height = H + 'px';
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  [bgCanvas, mainCanvas, fxCanvas].forEach(c => {
+    c.width = W * dpr;
+    c.height = H * dpr;
+    c.style.width = W + 'px';
+    c.style.height = H + 'px';
+    c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+  });
+  drawPaperBackground();
 }
 window.addEventListener('resize', resize);
 resize();
 
-updateBestDisplay();
+// ============================================================
+// Step 1: Hanji Paper Background
+// ============================================================
+function drawPaperBackground() {
+  bgCtx.fillStyle = '#F2EBD9';
+  bgCtx.fillRect(0, 0, W, H);
 
-// --- Color helpers ---
-function deviationColor(deviation) {
-  // deviation 0 = perfect green, 1+ = red
-  const t = Math.min(deviation / 0.35, 1);
-  const r = Math.round(255 * t);
-  const g = Math.round(255 * (1 - t * 0.8));
-  const b = Math.round(40 * (1 - t));
-  return `rgb(${r},${g},${b})`;
+  // Procedural paper fibers
+  if (!paperFiberCache || paperFiberCache.w !== W || paperFiberCache.h !== H) {
+    paperFiberCache = { w: W, h: H, fibers: [] };
+    for (let i = 0; i < 300; i++) {
+      paperFiberCache.fibers.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        angle: (Math.random() < 0.7 ? 0 : Math.PI / 2) + (Math.random() - 0.5) * 0.5,
+        len: 20 + Math.random() * 60,
+        curve: (Math.random() - 0.5) * 6,
+        opacity: 0.04 + Math.random() * 0.10,
+        width: 0.5 + Math.random() * 0.8
+      });
+    }
+  }
+
+  bgCtx.save();
+  bgCtx.strokeStyle = '#D9CEAA';
+  bgCtx.lineCap = 'round';
+  for (const f of paperFiberCache.fibers) {
+    bgCtx.globalAlpha = f.opacity;
+    bgCtx.lineWidth = f.width;
+    bgCtx.beginPath();
+    bgCtx.moveTo(f.x, f.y);
+    const ex = f.x + Math.cos(f.angle) * f.len;
+    const ey = f.y + Math.sin(f.angle) * f.len;
+    const cx = (f.x + ex) / 2 - Math.sin(f.angle) * f.curve;
+    const cy = (f.y + ey) / 2 + Math.cos(f.angle) * f.curve;
+    bgCtx.quadraticCurveTo(cx, cy, ex, ey);
+    bgCtx.stroke();
+  }
+  bgCtx.restore();
 }
 
-function deviationColorAlpha(deviation, alpha) {
-  const t = Math.min(deviation / 0.35, 1);
-  const r = Math.round(255 * t);
-  const g = Math.round(255 * (1 - t * 0.8));
-  const b = Math.round(40 * (1 - t));
-  return `rgba(${r},${g},${b},${alpha})`;
+// ============================================================
+// Step 2: Sumi Ink Brush Stroke Rendering
+// ============================================================
+function brushWidth(velocity) {
+  const normV = Math.min(velocity / 1.5, 1);
+  const base = 5;
+  return Math.max(1.5, Math.min(12, base * (1 - normV * 0.6)));
 }
 
-// --- Compute circle stats ---
+// Catmull-Rom interpolation
+function catmullRom(p0, p1, p2, p3, t) {
+  const t2 = t * t, t3 = t2 * t;
+  return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2*p0 - 5*p1 + 4*p2 - p3) * t2 + (-p0 + 3*p1 - 3*p2 + p3) * t3);
+}
+
+function drawInkStroke(ctx, pts) {
+  if (pts.length < 2) return;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Main ink body — variable width quads
+  for (let i = 1; i < pts.length; i++) {
+    const p0 = pts[i - 1];
+    const p1 = pts[i];
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+
+    const w0 = brushWidth(p0.v || 0) * 0.5;
+    const w1 = brushWidth(p1.v || 0) * 0.5;
+
+    // Main fill
+    ctx.beginPath();
+    ctx.moveTo(p0.x + nx * w0, p0.y + ny * w0);
+    ctx.lineTo(p1.x + nx * w1, p1.y + ny * w1);
+    ctx.lineTo(p1.x - nx * w1, p1.y - ny * w1);
+    ctx.lineTo(p0.x - nx * w0, p0.y - ny * w0);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(26,18,9,0.90)';
+    ctx.fill();
+  }
+
+  // Soft edge blur — wider, transparent stroke along path
+  ctx.globalAlpha = 0.25;
+  ctx.strokeStyle = '#3D2B1A';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#1A1209';
+  ctx.shadowBlur = 4;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    ctx.lineTo(pts[i].x, pts[i].y);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Dry brush effect — scattered hairlines
+  ctx.globalAlpha = 0.18;
+  ctx.strokeStyle = '#7A5C3F';
+  ctx.lineWidth = 0.5;
+  for (let i = 2; i < pts.length; i += 3) {
+    const p = pts[i];
+    const w = brushWidth(p.v || 0) * 0.7;
+    const angle = Math.random() * Math.PI * 2;
+    const r1 = w * 0.6 + Math.random() * w * 0.4;
+    const r2 = r1 + 1 + Math.random() * 3;
+    ctx.beginPath();
+    ctx.moveTo(p.x + Math.cos(angle) * r1, p.y + Math.sin(angle) * r1);
+    ctx.lineTo(p.x + Math.cos(angle) * r2, p.y + Math.sin(angle) * r2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ============================================================
+// Step 3: Ink Void Interior (먹물 심연)
+// ============================================================
+function drawInkVoid(cx, cy, r) {
+  bgCtx.save();
+
+  // Clip to circle
+  bgCtx.beginPath();
+  bgCtx.arc(cx, cy, r + 5, 0, Math.PI * 2);
+  bgCtx.clip();
+
+  // Deep ink pool gradient
+  const grad = bgCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, '#0A0806');
+  grad.addColorStop(0.5, '#141008');
+  grad.addColorStop(0.8, '#1A1209');
+  grad.addColorStop(1.0, '#2A1F14');
+  bgCtx.fillStyle = grad;
+  bgCtx.fillRect(cx - r - 10, cy - r - 10, r * 2 + 20, r * 2 + 20);
+
+  // Ink swirl curves — 3 flowing lines
+  bgCtx.strokeStyle = '#2A1F14';
+  bgCtx.lineCap = 'round';
+  for (let s = 0; s < 3; s++) {
+    const baseAngle = (s / 3) * Math.PI * 2 + inkSwirlAngle;
+    bgCtx.globalAlpha = 0.3 + s * 0.08;
+    bgCtx.lineWidth = 2 + s * 0.5;
+    bgCtx.beginPath();
+    const sr = r * (0.3 + s * 0.15);
+    const sx = cx + Math.cos(baseAngle) * sr;
+    const sy = cy + Math.sin(baseAngle) * sr;
+    bgCtx.moveTo(sx, sy);
+    const cAngle = baseAngle + 1.2;
+    const cpx = cx + Math.cos(cAngle) * sr * 0.6;
+    const cpy = cy + Math.sin(cAngle) * sr * 0.6;
+    const eAngle = baseAngle + 2.4;
+    const ex = cx + Math.cos(eAngle) * sr * 0.8;
+    const ey = cy + Math.sin(eAngle) * sr * 0.8;
+    bgCtx.quadraticCurveTo(cpx, cpy, ex, ey);
+    bgCtx.stroke();
+  }
+
+  // Ink mist at edge — fading gradient ring
+  const mistGrad = bgCtx.createRadialGradient(cx, cy, r * 0.6, cx, cy, r);
+  mistGrad.addColorStop(0, 'rgba(26,18,9,0)');
+  mistGrad.addColorStop(0.7, 'rgba(26,18,9,0.15)');
+  mistGrad.addColorStop(1, 'rgba(42,31,20,0.4)');
+  bgCtx.globalAlpha = 1;
+  bgCtx.fillStyle = mistGrad;
+  bgCtx.fillRect(cx - r - 10, cy - r - 10, r * 2 + 20, r * 2 + 20);
+
+  bgCtx.restore();
+}
+
+// ============================================================
+// Noise Functions — for Torn Edge
+// ============================================================
+function hash(n) {
+  let x = Math.sin(n * 127.1) * 43758.5453;
+  return (x - Math.floor(x)) * 2 - 1;
+}
+
+function valueNoise1D(x) {
+  const xi = Math.floor(x);
+  const xf = x - xi;
+  const u = xf * xf * (3 - 2 * xf);
+  return hash(xi) + u * (hash(xi + 1) - hash(xi));
+}
+
+function fbmNoise(x, octaves, freq, amp) {
+  let v = 0;
+  for (let i = 0; i < octaves; i++) {
+    v += valueNoise1D(x * freq) * amp;
+    freq *= 2;
+    amp *= 0.5;
+  }
+  return v;
+}
+
+// ============================================================
+// Step 5a: Torn Circle Path Generation
+// ============================================================
+function scoreToRoughness(score) {
+  if (score >= 95) return { freq: 0.012, octaves: 2, amp: 4, tearDur: 500 };
+  if (score >= 80) return { freq: 0.028, octaves: 3, amp: 12, tearDur: 650 };
+  if (score >= 60) return { freq: 0.055, octaves: 4, amp: 24, tearDur: 800 };
+  if (score >= 40) return { freq: 0.090, octaves: 5, amp: 42, tearDur: 1000 };
+  return { freq: 0.090, octaves: 5, amp: 50, tearDur: 1100 };
+}
+
+function generateTornPath(cx, cy, r, roughness) {
+  const steps = 180;
+  const seed = (Date.now() % 10000) * 0.01;
+  const path = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = (i / steps) * Math.PI * 2;
+    const noise = fbmNoise(angle * 10 + seed, roughness.octaves, roughness.freq * 80, roughness.amp);
+    const pr = r + noise;
+    path.push({
+      x: cx + Math.cos(angle) * pr,
+      y: cy + Math.sin(angle) * pr
+    });
+  }
+  return path;
+}
+
+// ============================================================
+// Step 5b: Tear Edge Gradient (종이-먹물 경계)
+// ============================================================
+function drawTearEdgeGradient(ctx, cx, cy, r, path, progress) {
+  if (progress <= 0) return;
+
+  const visibleCount = Math.floor(progress * path.length);
+  if (visibleCount < 3) return;
+
+  ctx.save();
+
+  // Draw concentric rings from outer (paper) to inner (void)
+  const gradientStops = [
+    { offset: 0, color: '#D9CBAA', alpha: 0.9 },
+    { offset: 4, color: '#C4A87A', alpha: 0.8 },
+    { offset: 10, color: '#5A3A2A', alpha: 0.85 },
+    { offset: 22, color: '#2A1F14', alpha: 0.9 },
+    { offset: 40, color: '#0A0806', alpha: 0.95 }
+  ];
+
+  for (let g = gradientStops.length - 1; g >= 0; g--) {
+    const stop = gradientStops[g];
+    const shrink = stop.offset;
+    ctx.globalAlpha = stop.alpha;
+    ctx.fillStyle = stop.color;
+
+    ctx.beginPath();
+    // Scale path inward
+    for (let i = 0; i < visibleCount; i++) {
+      const p = path[i];
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      const dist = Math.hypot(dx, dy) || 1;
+      const factor = Math.max(0, (dist - shrink)) / dist;
+      const px = cx + dx * factor;
+      const py = cy + dy * factor;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// ============================================================
+// Step 5c: Tear Propagation (Clipping)
+// ============================================================
+function applyTearClip(ctx, cx, cy, path, progress) {
+  if (progress <= 0) return;
+
+  const visibleCount = Math.floor(progress * path.length);
+  if (visibleCount < 3) return;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.beginPath();
+  ctx.moveTo(path[0].x, path[0].y);
+  for (let i = 1; i < visibleCount; i++) {
+    ctx.lineTo(path[i].x, path[i].y);
+  }
+  ctx.lineTo(cx, cy);
+  ctx.closePath();
+  ctx.fillStyle = '#000';
+  ctx.fill();
+  ctx.restore();
+}
+
+// ============================================================
+// Scoring — Kept from original
+// ============================================================
 function computeStats(pts) {
   if (pts.length < 3) return { cx: 0, cy: 0, r: 0, deviations: [] };
   let cx = 0, cy = 0;
@@ -262,9 +656,7 @@ function computeStats(pts) {
   cx /= pts.length;
   cy /= pts.length;
   let r = 0;
-  for (const p of pts) {
-    r += Math.hypot(p.x - cx, p.y - cy);
-  }
+  for (const p of pts) { r += Math.hypot(p.x - cx, p.y - cy); }
   r /= pts.length;
   const deviations = pts.map(p => {
     const dist = Math.hypot(p.x - cx, p.y - cy);
@@ -277,12 +669,10 @@ function computeScore(pts) {
   if (pts.length < 10) return 0;
   const { cx, cy, r, deviations } = computeStats(pts);
   const avgDev = deviations.reduce((a, b) => a + b, 0) / deviations.length;
-  // Also check if the path forms a complete loop
   const start = pts[0];
   const end = pts[pts.length - 1];
   const closureGap = Math.hypot(end.x - start.x, end.y - start.y);
   const closurePenalty = Math.min(closureGap / (r || 1) * 15, 20);
-  // Check angular coverage
   const angles = pts.map(p => Math.atan2(p.y - cy, p.x - cx));
   let totalAngle = 0;
   for (let i = 1; i < angles.length; i++) {
@@ -293,289 +683,411 @@ function computeScore(pts) {
   }
   const coverage = Math.abs(totalAngle) / (2 * Math.PI);
   const coveragePenalty = Math.max(0, (1 - coverage) * 40);
-
   const raw = 100 - avgDev * 200 - closurePenalty - coveragePenalty;
   return Math.max(0, Math.min(100, raw));
 }
 
 function getGrade(score) {
-  if (score >= 95) return { letter: 'S', color: '#ffd700' };
-  if (score >= 85) return { letter: 'A', color: '#00e676' };
-  if (score >= 70) return { letter: 'B', color: '#29b6f6' };
-  if (score >= 50) return { letter: 'C', color: '#ff9800' };
-  return { letter: 'D', color: '#f44336' };
+  if (score >= 95) return { letter: 'S', color: '#C9922B' };
+  if (score >= 85) return { letter: 'A', color: '#8B1A1A' };
+  if (score >= 70) return { letter: 'B', color: '#3D2B1A' };
+  if (score >= 50) return { letter: 'C', color: '#7A5C3F' };
+  return { letter: 'D', color: '#A89070' };
 }
 
-// --- Particles ---
-function spawnParticles(x, y, color) {
-  for (let i = 0; i < 2; i++) {
+// ============================================================
+// Particles
+// ============================================================
+function spawnInkDrop(x, y, v) {
+  const count = v > 0.8 ? 3 : 1;
+  for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = 0.5 + Math.random() * 1.5;
-    particles.push({
+    const speed = 0.3 + Math.random() * 1.0;
+    inkParticles.push({
       x, y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       life: 1,
-      decay: 0.015 + Math.random() * 0.02,
-      size: 1.5 + Math.random() * 2.5,
-      color
+      decay: 0.02 + Math.random() * 0.02,
+      size: 1.5 + Math.random() * 3,
+      permanent: false
     });
   }
 }
 
-function spawnRipple(cx, cy, r) {
-  ripples.push({ cx, cy, r: 0, targetR: r, life: 1, speed: 3 });
+function spawnFiber(x, y, outAngle) {
+  fiberParticles.push({
+    x, y,
+    vx: Math.cos(outAngle) * (0.5 + Math.random() * 1.5),
+    vy: Math.sin(outAngle) * (0.5 + Math.random() * 1.5) - 0.3,
+    gravity: 0.06 + Math.random() * 0.04,
+    life: 1,
+    decay: 0.012 + Math.random() * 0.008,
+    len: 3 + Math.random() * 8,
+    width: 0.4 + Math.random() * 0.6,
+    angle: outAngle + (Math.random() - 0.5) * 0.5,
+    rotSpeed: (Math.random() - 0.5) * 0.03
+  });
 }
 
-// --- Drawing ---
-function drawGrid() {
+function drawParticles(ctx) {
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.025)';
-  ctx.lineWidth = 0.5;
-  const spacing = 40;
-  for (let x = 0; x < W; x += spacing) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, H);
-    ctx.stroke();
-  }
-  for (let y = 0; y < H; y += spacing) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(W, y);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
 
-function drawStartGuide() {
-  if (points.length === 0 || isDone) return;
-  const start = points[0];
-  const t = Date.now() * 0.003;
-  const pulse = 0.3 + Math.sin(t) * 0.15;
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(start.x, start.y, 18 + Math.sin(t) * 4, 0, Math.PI * 2);
-  ctx.strokeStyle = `rgba(255,255,255,${pulse})`;
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawPath() {
-  if (points.length < 2) return;
-  const stats = computeStats(points);
-
-  ctx.save();
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  for (let i = 1; i < points.length; i++) {
-    const dev = stats.deviations[i];
-    const color = deviationColor(dev);
-
-    // Glow layer
-    ctx.beginPath();
-    ctx.moveTo(points[i - 1].x, points[i - 1].y);
-    ctx.lineTo(points[i].x, points[i].y);
-    ctx.strokeStyle = deviationColorAlpha(dev, 0.3);
-    ctx.lineWidth = 12;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 20;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    // Core line
-    ctx.beginPath();
-    ctx.moveTo(points[i - 1].x, points[i - 1].y);
-    ctx.lineTo(points[i].x, points[i].y);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 8;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-  }
-
-  ctx.restore();
-}
-
-function drawIdealCircle(stats, alpha) {
-  if (!stats || stats.r < 10) return;
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(stats.cx, stats.cy, stats.r, 0, Math.PI * 2);
-  ctx.strokeStyle = `rgba(255,255,255,${alpha * 0.25})`;
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([6, 8]);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.restore();
-}
-
-function drawParticles() {
-  ctx.save();
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
+  // Ink drops
+  for (let i = inkParticles.length - 1; i >= 0; i--) {
+    const p = inkParticles[i];
     p.x += p.vx;
     p.y += p.vy;
+    p.vx *= 0.96;
+    p.vy *= 0.96;
     p.life -= p.decay;
-    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    if (p.life <= 0) {
+      // Leave permanent ink stain on main canvas
+      mainCtx.save();
+      mainCtx.globalAlpha = 0.15;
+      mainCtx.fillStyle = '#1A1209';
+      mainCtx.beginPath();
+      mainCtx.arc(p.x, p.y, p.size * 0.5, 0, Math.PI * 2);
+      mainCtx.fill();
+      mainCtx.restore();
+      inkParticles.splice(i, 1);
+      continue;
+    }
+    ctx.globalAlpha = p.life * 0.7;
+    ctx.fillStyle = '#1A1209';
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-    const match = p.color.match(/\d+/g);
-    ctx.fillStyle = match
-      ? `rgba(${match[0]},${match[1]},${match[2]},${p.life * 0.7})`
-      : p.color;
-    ctx.shadowColor = p.color;
-    ctx.shadowBlur = 6;
     ctx.fill();
-    ctx.shadowBlur = 0;
   }
-  ctx.restore();
-}
 
-function drawRipples() {
-  ctx.save();
-  for (let i = ripples.length - 1; i >= 0; i--) {
-    const r = ripples[i];
-    r.r += r.speed;
-    r.life -= 0.012;
-    if (r.life <= 0) { ripples.splice(i, 1); continue; }
+  // Paper fibers
+  for (let i = fiberParticles.length - 1; i >= 0; i--) {
+    const f = fiberParticles[i];
+    f.x += f.vx;
+    f.y += f.vy;
+    f.vy += f.gravity;
+    f.vx *= 0.99;
+    f.angle += f.rotSpeed;
+    f.life -= f.decay;
+    if (f.life <= 0) { fiberParticles.splice(i, 1); continue; }
+    ctx.globalAlpha = f.life * 0.6;
+    ctx.strokeStyle = '#C8B896';
+    ctx.lineWidth = f.width;
     ctx.beginPath();
-    ctx.arc(r.cx, r.cy, r.r, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(255,255,255,${r.life * 0.2})`;
-    ctx.lineWidth = 2;
+    const dx = Math.cos(f.angle) * f.len * 0.5;
+    const dy = Math.sin(f.angle) * f.len * 0.5;
+    ctx.moveTo(f.x - dx, f.y - dy);
+    ctx.lineTo(f.x + dx, f.y + dy);
     ctx.stroke();
   }
+
   ctx.restore();
 }
 
-let idealAlpha = 0;
-let showIdeal = false;
-let finalStats = null;
+// ============================================================
+// Step 4 & 6: Animation Sequencer
+// ============================================================
+let soakSnapshot = null;
 
-function render() {
-  ctx.clearRect(0, 0, W, H);
+function captureMainCanvas() {
+  // Save current state of main canvas for soaking effect
+  soakSnapshot = mainCtx.getImageData(0, 0, mainCanvas.width, mainCanvas.height);
+}
 
-  // Background
-  const bg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
-  bg.addColorStop(0, '#111118');
-  bg.addColorStop(1, '#08080c');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
+function drawInkSoak(elapsed) {
+  if (!finalStats) return;
 
-  drawGrid();
+  // Re-draw preserved strokes
+  mainCtx.clearRect(0, 0, W, H);
+  mainCtx.putImageData(soakSnapshot, 0, 0);
 
-  if (showIdeal && finalStats) {
-    idealAlpha = Math.min(idealAlpha + 0.02, 1);
-    drawIdealCircle(finalStats, idealAlpha);
+  const progress = Math.min(elapsed / 500, 1);
+  const ease = 1 - Math.pow(1 - progress, 2); // ease-out
+
+  mainCtx.save();
+
+  // Ink pulse — expanding shadow blur
+  mainCtx.globalAlpha = 0.15 * (1 - progress);
+  mainCtx.strokeStyle = '#1A1209';
+  mainCtx.lineWidth = 8 * ease;
+  mainCtx.shadowColor = '#1A1209';
+  mainCtx.shadowBlur = 8 * ease;
+  mainCtx.beginPath();
+  mainCtx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    mainCtx.lineTo(points[i].x, points[i].y);
+  }
+  mainCtx.stroke();
+  mainCtx.shadowBlur = 0;
+
+  // Bleed spread — multiply blended radial gradients
+  mainCtx.globalCompositeOperation = 'multiply';
+  mainCtx.globalAlpha = 0.08 * ease;
+  const spreadR = 6 * ease;
+  for (let i = 0; i < points.length; i += 4) {
+    const p = points[i];
+    const grad = mainCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, spreadR + brushWidth(p.v || 0));
+    grad.addColorStop(0, 'rgba(61,43,26,0)');
+    grad.addColorStop(0.5, 'rgba(61,43,26,0.5)');
+    grad.addColorStop(1, 'rgba(61,43,26,0)');
+    mainCtx.fillStyle = grad;
+    mainCtx.fillRect(p.x - spreadR - 12, p.y - spreadR - 12, (spreadR + 12) * 2, (spreadR + 12) * 2);
   }
 
-  drawPath();
-  drawStartGuide();
-  drawParticles();
-  drawRipples();
+  // Paper wetting — wider transparent stroke
+  mainCtx.globalCompositeOperation = 'source-over';
+  mainCtx.globalAlpha = 0.04 * ease;
+  mainCtx.strokeStyle = '#A89070';
+  mainCtx.lineWidth = 16;
+  mainCtx.shadowColor = '#A89070';
+  mainCtx.shadowBlur = 6;
+  mainCtx.beginPath();
+  mainCtx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    mainCtx.lineTo(points[i].x, points[i].y);
+  }
+  mainCtx.stroke();
+  mainCtx.shadowBlur = 0;
 
-  animFrame = requestAnimationFrame(render);
+  mainCtx.restore();
 }
 
-render();
+function drawAnticipation(progress) {
+  // Subtle luminance boost on paper
+  mainCtx.save();
+  mainCtx.globalAlpha = 0.06 * Math.sin(progress * Math.PI);
+  mainCtx.fillStyle = '#FFFFF0';
+  mainCtx.fillRect(0, 0, W, H);
+  mainCtx.restore();
 
-// --- Input ---
-function getPos(e) {
-  if (e.touches) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  return { x: e.clientX, y: e.clientY };
+  // Thin halo ring at circle edge
+  if (finalStats) {
+    mainCtx.save();
+    mainCtx.globalAlpha = 0.2 * (1 - progress);
+    mainCtx.strokeStyle = '#D9CBAA';
+    mainCtx.lineWidth = 1;
+    mainCtx.beginPath();
+    mainCtx.arc(finalStats.cx, finalStats.cy, finalStats.r + 2 + progress * 4, 0, Math.PI * 2);
+    mainCtx.stroke();
+    mainCtx.restore();
+  }
 }
 
-function onStart(e) {
-  if (isDone) return;
-  e.preventDefault();
-  const pos = getPos(e);
-  points = [pos];
-  isDrawing = true;
-  hint.style.opacity = '0';
+function drawFirstCracks(progress) {
+  if (!finalStats || !tornPath) return;
+
+  mainCtx.save();
+  mainCtx.globalAlpha = 0.3 * progress;
+  mainCtx.strokeStyle = '#5A3A2A';
+  mainCtx.lineWidth = 0.5;
+
+  // Draw 4-6 hairline cracks from random points on the circle
+  const crackCount = 5;
+  for (let c = 0; c < crackCount; c++) {
+    const angle = (c / crackCount) * Math.PI * 2;
+    const sx = finalStats.cx + Math.cos(angle) * finalStats.r;
+    const sy = finalStats.cy + Math.sin(angle) * finalStats.r;
+    const len = 3 + progress * 8;
+    const outAngle = angle + (Math.random() - 0.5) * 0.3;
+    mainCtx.beginPath();
+    mainCtx.moveTo(sx, sy);
+    mainCtx.lineTo(sx + Math.cos(outAngle) * len, sy + Math.sin(outAngle) * len);
+    mainCtx.stroke();
+  }
+
+  mainCtx.restore();
 }
 
-function onMove(e) {
-  if (!isDrawing || isDone) return;
-  e.preventDefault();
-  const pos = getPos(e);
-  const last = points[points.length - 1];
+let prevTearVisibleCount = 0;
 
-  // Only add if moved enough
-  const dist = Math.hypot(pos.x - last.x, pos.y - last.y);
-  if (dist < 3) return;
+function animateTearPhase(elapsed, roughness) {
+  if (!finalStats || !tornPath) return;
 
-  points.push(pos);
+  const tearDuration = roughness.tearDur;
+  const tearElapsed = elapsed - 700;
+  tearProgress = Math.min(tearElapsed / tearDuration, 1);
 
-  // Spawn particles
-  const stats = computeStats(points);
-  const dev = stats.deviations[stats.deviations.length - 1] || 0;
-  const color = deviationColor(dev);
-  spawnParticles(pos.x, pos.y, color);
+  // Easing — ease-in-out
+  const eased = tearProgress < 0.5
+    ? 2 * tearProgress * tearProgress
+    : 1 - Math.pow(-2 * tearProgress + 2, 2) / 2;
 
-  // Check if returned to start
-  if (points.length > 30) {
-    const start = points[0];
-    const closeDist = Math.hypot(pos.x - start.x, pos.y - start.y);
-    if (closeDist < 30 && stats.r > 30) {
-      finishDrawing();
+  // Re-draw main canvas: paper + ink + soak, then clip tear
+  mainCtx.clearRect(0, 0, W, H);
+
+  // Restore paper fill on main canvas
+  mainCtx.fillStyle = '#F2EBD9';
+  mainCtx.fillRect(0, 0, W, H);
+
+  // Re-draw paper fibers on main canvas
+  mainCtx.save();
+  mainCtx.strokeStyle = '#D9CEAA';
+  mainCtx.lineCap = 'round';
+  if (paperFiberCache) {
+    for (const f of paperFiberCache.fibers) {
+      mainCtx.globalAlpha = f.opacity;
+      mainCtx.lineWidth = f.width;
+      mainCtx.beginPath();
+      mainCtx.moveTo(f.x, f.y);
+      const ex = f.x + Math.cos(f.angle) * f.len;
+      const ey = f.y + Math.sin(f.angle) * f.len;
+      const cx = (f.x + ex) / 2 - Math.sin(f.angle) * f.curve;
+      const cy = (f.y + ey) / 2 + Math.cos(f.angle) * f.curve;
+      mainCtx.quadraticCurveTo(cx, cy, ex, ey);
+      mainCtx.stroke();
     }
   }
-}
+  mainCtx.restore();
 
-function onEnd(e) {
-  if (!isDrawing || isDone) return;
-  e.preventDefault();
-  if (points.length > 20) {
-    finishDrawing();
-  } else {
-    points = [];
-    isDrawing = false;
-    hint.style.opacity = '1';
+  // Re-draw ink stroke
+  drawInkStroke(mainCtx, points);
+
+  // Apply soak effects (fully progressed)
+  mainCtx.save();
+  mainCtx.globalAlpha = 0.12;
+  mainCtx.strokeStyle = '#1A1209';
+  mainCtx.lineWidth = 8;
+  mainCtx.shadowColor = '#1A1209';
+  mainCtx.shadowBlur = 8;
+  mainCtx.beginPath();
+  mainCtx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) mainCtx.lineTo(points[i].x, points[i].y);
+  mainCtx.stroke();
+  mainCtx.shadowBlur = 0;
+  mainCtx.restore();
+
+  // Draw tear edge gradient (before clipping)
+  drawTearEdgeGradient(mainCtx, finalStats.cx, finalStats.cy, finalStats.r, tornPath, eased);
+
+  // Clip the void hole
+  applyTearClip(mainCtx, finalStats.cx, finalStats.cy, tornPath, eased);
+
+  // Spawn fiber particles at the advancing tear front
+  const currentVisible = Math.floor(eased * tornPath.length);
+  if (currentVisible > prevTearVisibleCount) {
+    for (let i = prevTearVisibleCount; i < currentVisible; i += 3) {
+      const tp = tornPath[i];
+      const outAngle = Math.atan2(tp.y - finalStats.cy, tp.x - finalStats.cx);
+      spawnFiber(tp.x, tp.y, outAngle);
+    }
+    prevTearVisibleCount = currentVisible;
   }
 }
 
+function drawVoidReveal(progress) {
+  // The void is already on bg-canvas, we just need ink mist to intensify
+  if (!finalStats) return;
+  // Update swirl angle
+  inkSwirlAngle += 0.001;
+
+  // Redraw void with updated swirl
+  drawPaperBackground();
+  drawInkVoid(finalStats.cx, finalStats.cy, finalStats.r);
+}
+
+// ============================================================
+// Master Animation Loop
+// ============================================================
 function finishDrawing() {
   isDrawing = false;
   isDone = true;
+  stopBrushSound();
+
   finalStats = computeStats(points);
-  showIdeal = true;
-
-  // Ripple effect
-  spawnRipple(finalStats.cx, finalStats.cy, finalStats.r);
-  setTimeout(() => spawnRipple(finalStats.cx, finalStats.cy, finalStats.r * 0.6), 200);
-  setTimeout(() => spawnRipple(finalStats.cx, finalStats.cy, finalStats.r * 1.3), 400);
-
-  // Burst particles
-  for (let i = 0; i < 50; i++) {
-    const angle = (i / 50) * Math.PI * 2;
-    const px = finalStats.cx + Math.cos(angle) * finalStats.r;
-    const py = finalStats.cy + Math.sin(angle) * finalStats.r;
-    spawnParticles(px, py, 'rgb(255,255,255)');
+  if (finalStats.r < 20) {
+    isDone = false;
+    points = [];
+    hint.style.opacity = '1';
+    return;
   }
 
   const score = computeScore(points);
+  const roughness = scoreToRoughness(score);
+  tornPath = generateTornPath(finalStats.cx, finalStats.cy, finalStats.r, roughness);
 
-  setTimeout(() => showResult(score), 600);
+  // Pre-render void on bg-canvas
+  drawInkVoid(finalStats.cx, finalStats.cy, finalStats.r);
+
+  // Capture current main-canvas for soak phase
+  captureMainCanvas();
+
+  // Play sounds
+  playInkSoakSound();
+  setTimeout(() => playTearSound(roughness.tearDur), 500);
+
+  // Start animation
+  animStartTime = performance.now();
+  animPhase = 'soaking';
+  prevTearVisibleCount = 0;
+
+  const tearEnd = 700 + roughness.tearDur;
+  const totalDur = Math.max(tearEnd, 1600) + 800;
+
+  // Timeline: 0-400 soak | 400-600 anticipation | 600-700 cracks | 700-tearEnd tear | tearEnd-totalDur reveal
+  const crackStart = 600;
+  const tearStart = 700;
+
+  function animLoop(now) {
+    try {
+      const elapsed = now - animStartTime;
+
+      if (elapsed < 400) {
+        drawInkSoak(elapsed);
+      } else if (elapsed < crackStart) {
+        drawInkSoak(400);
+        drawAnticipation((elapsed - 400) / 200);
+      } else if (elapsed < tearStart) {
+        drawInkSoak(400);
+        drawFirstCracks((elapsed - crackStart) / (tearStart - crackStart));
+      } else if (elapsed < tearEnd) {
+        animateTearPhase(elapsed, roughness);
+      } else if (elapsed < totalDur) {
+        animateTearPhase(tearEnd, roughness);
+        drawVoidReveal((elapsed - tearEnd) / 800);
+      }
+
+      fxCtx.clearRect(0, 0, W, H);
+      drawParticles(fxCtx);
+
+      if (elapsed < totalDur) {
+        requestAnimationFrame(animLoop);
+      } else {
+        animPhase = 'stable';
+        function swirlLoop() {
+          if (animPhase !== 'stable') return;
+          inkSwirlAngle += 0.002;
+          drawPaperBackground();
+          drawInkVoid(finalStats.cx, finalStats.cy, finalStats.r);
+          fxCtx.clearRect(0, 0, W, H);
+          drawParticles(fxCtx);
+          requestAnimationFrame(swirlLoop);
+        }
+        swirlLoop();
+        setTimeout(() => showResult(score), 300);
+      }
+    } catch(err) {
+      console.error('animLoop error:', err);
+    }
+  }
+
+  requestAnimationFrame(animLoop);
 }
 
+// ============================================================
+// Result Display
+// ============================================================
 function showResult(score) {
   const grade = getGrade(score);
   gradeEl.textContent = grade.letter;
   gradeEl.style.color = grade.color;
-
   overlay.classList.add('show');
 
-  // Count-up animation
   let current = 0;
   const target = Math.round(score * 10) / 10;
   const step = target / 60;
   function countUp() {
     current += step;
     if (current >= target) {
-      current = target;
       scoreValue.textContent = target.toFixed(1);
     } else {
       scoreValue.textContent = current.toFixed(1);
@@ -584,14 +1096,9 @@ function showResult(score) {
   }
   countUp();
 
-  // Check best
   if (score > bestScore) {
     bestScore = score;
-    try {
-      localStorage.setItem('perfectCircleBest', bestScore.toString());
-    } catch (e) {
-      // localStorage unavailable
-    }
+    try { localStorage.setItem('perfectCircleBest', bestScore.toString()); } catch(e) {}
     newBestEl.classList.add('show');
     updateBestDisplay();
   } else {
@@ -603,36 +1110,134 @@ function updateBestDisplay() {
   bestScoreValue.textContent = bestScore > 0 ? bestScore.toFixed(1) + '%' : '—';
 }
 
+// ============================================================
+// Input Handlers
+// ============================================================
+function getPos(e) {
+  if (e.touches) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  return { x: e.clientX, y: e.clientY };
+}
+
+function onStart(e) {
+  if (isDone) return;
+  e.preventDefault();
+  initAudio();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+  const pos = getPos(e);
+  smoothVelocity = 0;
+  points = [{ x: pos.x, y: pos.y, t: performance.now(), v: 0 }];
+  isDrawing = true;
+  hint.style.opacity = '0';
+  startBrushSound();
+}
+
+function onMove(e) {
+  if (!isDrawing || isDone) return;
+  e.preventDefault();
+  const pos = getPos(e);
+  const last = points[points.length - 1];
+  const dist = Math.hypot(pos.x - last.x, pos.y - last.y);
+  if (dist < 3) return;
+
+  const now = performance.now();
+  const dt = now - last.t;
+  const rawV = dist / Math.max(dt, 1);
+  smoothVelocity = smoothVelocity * 0.7 + rawV * 0.3;
+
+  points.push({ x: pos.x, y: pos.y, t: now, v: smoothVelocity });
+
+  // Spawn ink drops on velocity spikes
+  if (smoothVelocity > 0.6) {
+    spawnInkDrop(pos.x, pos.y, smoothVelocity);
+    kickIdle();
+  }
+
+  updateBrushSound(smoothVelocity);
+
+  // Re-draw main canvas with strokes
+  mainCtx.clearRect(0, 0, W, H);
+  drawInkStroke(mainCtx, points);
+  drawStartGuide();
+}
+
+function onEnd(e) {
+  if (!isDrawing || isDone) return;
+  e.preventDefault();
+  if (points.length > 20) {
+    finishDrawing();
+  } else {
+    stopBrushSound();
+    points = [];
+    isDrawing = false;
+    mainCtx.clearRect(0, 0, W, H);
+    hint.style.opacity = '1';
+  }
+}
+
+function drawStartGuide() {
+  if (points.length === 0 || isDone) return;
+  const start = points[0];
+  const t = Date.now() * 0.003;
+  const pulse = 0.15 + Math.sin(t) * 0.08;
+  mainCtx.save();
+  mainCtx.beginPath();
+  mainCtx.arc(start.x, start.y, 14 + Math.sin(t) * 3, 0, Math.PI * 2);
+  mainCtx.strokeStyle = `rgba(26,18,9,${pulse})`;
+  mainCtx.lineWidth = 1;
+  mainCtx.stroke();
+  mainCtx.restore();
+}
+
+// ============================================================
+// Reset
+// ============================================================
 function reset() {
   points = [];
-  particles = [];
-  ripples = [];
+  inkParticles = [];
+  fiberParticles = [];
   isDrawing = false;
   isDone = false;
-  showIdeal = false;
-  idealAlpha = 0;
   finalStats = null;
+  tornPath = null;
+  animPhase = 'idle';
+  tearProgress = 0;
+  prevTearVisibleCount = 0;
+  soakSnapshot = null;
   overlay.classList.remove('show');
   scoreValue.textContent = '0';
   hint.style.opacity = '1';
+  drawPaperBackground();
+  mainCtx.clearRect(0, 0, W, H);
+  fxCtx.clearRect(0, 0, W, H);
 }
 
-// Events
-canvas.addEventListener('mousedown', onStart);
-canvas.addEventListener('mousemove', onMove);
-canvas.addEventListener('mouseup', onEnd);
-canvas.addEventListener('mouseleave', onEnd);
-canvas.addEventListener('touchstart', onStart, { passive: false });
-canvas.addEventListener('touchmove', onMove, { passive: false });
-canvas.addEventListener('touchend', onEnd, { passive: false });
+// ============================================================
+// Event Binding
+// ============================================================
+mainCanvas.addEventListener('pointerdown', onStart);
+mainCanvas.addEventListener('pointermove', onMove);
+mainCanvas.addEventListener('pointerup', onEnd);
+mainCanvas.addEventListener('pointerleave', onEnd);
+mainCanvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
 retryBtn.addEventListener('click', reset);
-
-// Keyboard shortcut
 document.addEventListener('keydown', (e) => {
-  if (e.key === ' ' || e.key === 'Enter') {
-    if (isDone) reset();
-  }
+  if (e.key === ' ' || e.key === 'Enter') { if (isDone) reset(); }
+  if (e.key === 'r' || e.key === 'R') { if (isDone) reset(); }
 });
+
+// ============================================================
+// Idle render loop (particles only when active)
+// ============================================================
+let idleRunning = false;
+function idleRender() {
+  if (animPhase !== 'idle' || isDrawing) { idleRunning = false; return; }
+  if (inkParticles.length === 0 && fiberParticles.length === 0) { idleRunning = false; return; }
+  fxCtx.clearRect(0, 0, W, H);
+  drawParticles(fxCtx);
+  requestAnimationFrame(idleRender);
+}
+function kickIdle() { if (!idleRunning) { idleRunning = true; idleRender(); } }
 </script>
 </body>
 </html>
