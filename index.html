@@ -140,9 +140,9 @@ function createBristles() {
     bristles.push({
       offset: (t - 0.5) * 2,                                  // -1..1
       jitter: (Math.random() - 0.5) * 0.12,                   // slight randomness
-      opacity: 0.14 + (1 - distFromCenter) * 0.20 + Math.random() * 0.04,
-      // Center bristles darker (~0.34), edge bristles lighter (~0.14)
-      thickness: 0.5 + Math.random() * 0.8,
+      opacity: 0.25 + (1 - distFromCenter) * 0.35 + Math.random() * 0.06,
+      // Center bristles dark (~0.60), edge bristles medium (~0.25)
+      thickness: 0.7 + Math.random() * 1.0,
       seed: Math.floor(Math.random() * 10000)                 // for deterministic dry brush
     });
   }
@@ -206,12 +206,43 @@ window.addEventListener('resize', resize);
 resize();
 
 // ============================================================
-// Hanji Paper Background
+// Hanji Paper Background — Oriental aesthetic
 // ============================================================
 function drawPaper() {
+  // Base warm paper
   paperCtx.fillStyle = '#F2EBD9';
   paperCtx.fillRect(0, 0, W, H);
 
+  // --- Ink wash edge vignette (먹 워시) ---
+  // Subtle dark wash around edges — like aged oriental scroll
+  paperCtx.save();
+  const vg = paperCtx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.75);
+  vg.addColorStop(0, 'rgba(26,18,9,0)');
+  vg.addColorStop(0.6, 'rgba(26,18,9,0)');
+  vg.addColorStop(0.85, 'rgba(26,18,9,0.03)');
+  vg.addColorStop(1, 'rgba(26,18,9,0.08)');
+  paperCtx.fillStyle = vg;
+  paperCtx.fillRect(0, 0, W, H);
+  paperCtx.restore();
+
+  // --- Ink wash mountain silhouette (산수 수묵) ---
+  // Faint mountain range at bottom — layered like traditional 산수화
+  paperCtx.save();
+  // Far mountains (very faint)
+  paperCtx.globalAlpha = 0.025;
+  paperCtx.fillStyle = '#5A4A3A';
+  drawMountainRange(paperCtx, W, H, H * 0.72, 5, 0.6);
+  // Mid mountains
+  paperCtx.globalAlpha = 0.018;
+  paperCtx.fillStyle = '#4A3A2A';
+  drawMountainRange(paperCtx, W, H, H * 0.82, 4, 0.8);
+  // Near mountains (slightly darker)
+  paperCtx.globalAlpha = 0.012;
+  paperCtx.fillStyle = '#3D2B1A';
+  drawMountainRange(paperCtx, W, H, H * 0.90, 3, 1.0);
+  paperCtx.restore();
+
+  // --- Paper fibers (화선지 섬유) ---
   if (!paperFibers || paperFibers._w !== W) {
     paperFibers = []; paperFibers._w = W;
     for (let i = 0; i < 500; i++) {
@@ -236,13 +267,102 @@ function drawPaper() {
     paperCtx.stroke();
   }
   paperCtx.restore();
-  // Grain noise
+
+  // --- Grain noise ---
   paperCtx.save(); paperCtx.globalAlpha = 0.015;
   for (let i = 0; i < 3000; i++) {
     paperCtx.fillStyle = Math.random() > 0.5 ? '#C0B090' : '#FFF8E8';
     paperCtx.fillRect(Math.random() * W, Math.random() * H, 1, 1);
   }
   paperCtx.restore();
+
+  // --- Decorative ink wash cloud/mist (운무) ---
+  // Faint horizontal mist bands — like morning fog in 산수화
+  paperCtx.save();
+  for (let i = 0; i < 3; i++) {
+    const my = H * (0.55 + i * 0.15) + (Math.random() - 0.5) * H * 0.08;
+    const mw = W * (0.4 + Math.random() * 0.5);
+    const mx = (W - mw) * Math.random();
+    const mistGrad = paperCtx.createRadialGradient(mx + mw / 2, my, 0, mx + mw / 2, my, mw / 2);
+    mistGrad.addColorStop(0, 'rgba(26,18,9,0.015)');
+    mistGrad.addColorStop(0.5, 'rgba(26,18,9,0.008)');
+    mistGrad.addColorStop(1, 'rgba(26,18,9,0)');
+    paperCtx.fillStyle = mistGrad;
+    paperCtx.fillRect(0, 0, W, H);
+  }
+  paperCtx.restore();
+
+  // --- Red seal stamp (朱印/낙관) — bottom-right corner ---
+  drawSealStamp(paperCtx, W - 52, H - 52, 18);
+}
+
+// Mountain range generator for 산수화 background
+function drawMountainRange(ctx, w, h, baseY, peaks, scale) {
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  ctx.lineTo(0, baseY);
+  const step = w / (peaks * 20);
+  let x = 0;
+  while (x <= w) {
+    // Layered sine waves for natural mountain shapes
+    const y = baseY
+      - Math.sin(x * 0.003 * scale) * h * 0.06
+      - Math.sin(x * 0.007 * scale + 1.5) * h * 0.04
+      - Math.sin(x * 0.015 * scale + 3.0) * h * 0.02
+      - Math.max(0, Math.sin(x * 0.002 * scale + 0.8)) * h * 0.05;
+    ctx.lineTo(x, y);
+    x += step;
+  }
+  ctx.lineTo(w, baseY);
+  ctx.lineTo(w, h);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Traditional red seal stamp (朱印)
+function drawSealStamp(ctx, cx, cy, size) {
+  ctx.save();
+  // Outer square with slightly rough edges
+  ctx.fillStyle = 'rgba(180,40,30,0.12)';
+  ctx.strokeStyle = 'rgba(180,40,30,0.18)';
+  ctx.lineWidth = 1.5;
+  const s = size;
+  // Slightly rotated for hand-stamped feel
+  ctx.translate(cx, cy);
+  ctx.rotate(-0.05);
+  // Square border
+  ctx.beginPath();
+  ctx.rect(-s, -s, s * 2, s * 2);
+  ctx.fill();
+  ctx.stroke();
+  // Inner character strokes — abstract 圓 (circle) character
+  ctx.strokeStyle = 'rgba(242,235,217,0.6)';
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  // Outer frame of character
+  ctx.beginPath();
+  ctx.rect(-s * 0.65, -s * 0.65, s * 1.3, s * 1.3);
+  ctx.stroke();
+  // Horizontal strokes inside
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.4, -s * 0.15);
+  ctx.lineTo(s * 0.4, -s * 0.15);
+  ctx.moveTo(-s * 0.4, s * 0.2);
+  ctx.lineTo(s * 0.4, s * 0.2);
+  ctx.stroke();
+  // Small circle in center (원 = circle)
+  ctx.beginPath();
+  ctx.arc(0, 0, s * 0.2, 0, Math.PI * 2);
+  ctx.stroke();
+  // Vertical stroke
+  ctx.beginPath();
+  ctx.moveTo(0, -s * 0.65);
+  ctx.lineTo(0, -s * 0.15);
+  ctx.moveTo(0, s * 0.2);
+  ctx.lineTo(0, s * 0.65);
+  ctx.stroke();
+  ctx.restore();
 }
 
 // ============================================================
@@ -334,8 +454,8 @@ function renderInk() {
     if (points.length === 1) {
       const p = points[0], w = getWidth(0);
       inkCtx.save();
-      inkCtx.fillStyle = 'rgba(26,18,9,0.55)';
-      inkCtx.shadowColor = 'rgba(26,18,9,0.25)';
+      inkCtx.fillStyle = 'rgba(26,18,9,0.75)';
+      inkCtx.shadowColor = 'rgba(26,18,9,0.35)';
       inkCtx.shadowBlur = w * 3;
       inkCtx.beginPath(); inkCtx.arc(p.x, p.y, w * 0.8, 0, Math.PI * 2); inkCtx.fill();
       inkCtx.restore();
@@ -360,9 +480,9 @@ function renderInk() {
 
   // --- Layer 1: Ink mist (안개) — wide faint halo ---
   inkCtx.save();
-  inkCtx.strokeStyle = 'rgba(61,43,26,0.025)';
+  inkCtx.strokeStyle = 'rgba(40,30,18,0.04)';
   inkCtx.lineCap = 'round'; inkCtx.lineJoin = 'round';
-  inkCtx.shadowColor = 'rgba(61,43,26,0.04)';
+  inkCtx.shadowColor = 'rgba(40,30,18,0.06)';
   inkCtx.shadowBlur = 45;
   inkCtx.lineWidth = 36;
   drawSmoothPath(inkCtx, points);
@@ -370,9 +490,9 @@ function renderInk() {
 
   // --- Layer 1b: Secondary bleed halo (번짐 확산) ---
   inkCtx.save();
-  inkCtx.strokeStyle = 'rgba(50,38,22,0.04)';
+  inkCtx.strokeStyle = 'rgba(35,25,15,0.06)';
   inkCtx.lineCap = 'round'; inkCtx.lineJoin = 'round';
-  inkCtx.shadowColor = 'rgba(50,38,22,0.035)';
+  inkCtx.shadowColor = 'rgba(35,25,15,0.05)';
   inkCtx.shadowBlur = 22;
   inkCtx.lineWidth = 20;
   drawSmoothPath(inkCtx, points);
@@ -397,8 +517,8 @@ function renderInk() {
 
     inkCtx.strokeStyle = `rgba(26,18,9,${b.opacity})`;
     inkCtx.lineWidth = b.thickness;
-    inkCtx.shadowColor = 'rgba(26,18,9,0.03)';
-    inkCtx.shadowBlur = 1.5;
+    inkCtx.shadowColor = 'rgba(26,18,9,0.08)';
+    inkCtx.shadowBlur = 2;
 
     // Split path into segments for dry brush gaps (비백)
     // Outer bristles break at high velocity — deterministic based on seed
@@ -439,8 +559,8 @@ function renderInk() {
   const poolGrad = inkCtx.createRadialGradient(
     startP.x, startP.y, 0, startP.x, startP.y, startW * 1.8
   );
-  poolGrad.addColorStop(0, 'rgba(26,18,9,0.45)');
-  poolGrad.addColorStop(0.5, 'rgba(26,18,9,0.2)');
+  poolGrad.addColorStop(0, 'rgba(26,18,9,0.6)');
+  poolGrad.addColorStop(0.4, 'rgba(26,18,9,0.3)');
   poolGrad.addColorStop(1, 'rgba(26,18,9,0)');
   inkCtx.fillStyle = poolGrad;
   inkCtx.beginPath(); inkCtx.arc(startP.x, startP.y, startW * 1.8, 0, Math.PI * 2); inkCtx.fill();
